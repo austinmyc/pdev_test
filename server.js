@@ -40,6 +40,12 @@ app.prepare().then(() => {
     socket.on('join-session', (data) => {
       const { sessionId, userId, userName } = data;
 
+      // Validate required data
+      if (!sessionId || !userId || !userName) {
+        console.log(`Invalid join attempt - missing data: sessionId=${sessionId}, userId=${userId}, userName=${userName}`);
+        return;
+      }
+
       socket.join(sessionId);
 
       // Initialize session if it doesn't exist
@@ -55,7 +61,7 @@ app.prepare().then(() => {
       // Add or update participant
       session.participants.set(userId, {
         id: userId,
-        name: userName || `User ${userId.substring(0, 6)}`,
+        name: userName,
         socketId: socket.id,
         score: 0,
         attempted: 0,

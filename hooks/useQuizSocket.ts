@@ -24,6 +24,11 @@ export function useQuizSocket(sessionId: string, userId: string, userName: strin
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    // Don't connect if required data is missing
+    if (!sessionId || !userId || !userName) {
+      return;
+    }
+
     // Initialize socket connection
     const socket = io({
       path: '/socket.io',

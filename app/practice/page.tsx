@@ -278,14 +278,14 @@ export default function PracticePage() {
     }
     setUserId(existingUserId);
 
-    // Generate or load session ID
-    const existingSessionId = localStorage.getItem("tvmSessionId");
-    if (existingSessionId) {
-      setSessionId(existingSessionId);
-    } else {
-      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      setSessionId(newSessionId);
-      localStorage.setItem("tvmSessionId", newSessionId);
+    // Use a global shared session ID for all users to see each other
+    // You can change this to create different quiz rooms if needed
+    const globalSessionId = "global-practice-session";
+    setSessionId(globalSessionId);
+    localStorage.setItem("tvmSessionId", globalSessionId);
+
+    // Store session start time if not already stored
+    if (!localStorage.getItem("tvmSessionStartTime")) {
       localStorage.setItem("tvmSessionStartTime", Date.now().toString());
     }
   }, []);
