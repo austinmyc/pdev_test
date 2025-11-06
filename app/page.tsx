@@ -647,7 +647,7 @@ export default function Home() {
       <footer className="bg-gray-800 mt-12 py-6 border-t border-gray-700">
         <div className="container mx-auto px-4 text-center text-gray-400 text-sm">
           <p>Time Value of Money Interactive Learning Platform</p>
-          <p className="mt-1">Educational tool for finance students</p>
+          <p className="mt-1">PDEV 6800Z T02 G14</p>
         </div>
       </footer>
     </div>
