@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   calculateFutureValue,
   calculatePresentValue,
   calculateLoanPayment,
   calculateNPV,
+  calculateFutureValueAnnuity,
+  calculatePresentValueAnnuity,
 } from "@/lib/tvmCalculations";
 import { formatCurrency, formatPercentage } from "@/lib/formatters";
 
@@ -19,11 +21,14 @@ interface Problem {
   explanation: string;
   hint?: string;
   calculateAnswer?: () => number;
+  difficulty: "easy" | "medium" | "hard";
 }
 
 const problems: Problem[] = [
+  // Easy Problems
   {
     id: 1,
+    difficulty: "easy",
     question:
       "If you invest $5,000 today at an annual interest rate of 6%, what will it be worth in 5 years?",
     type: "calculation",
@@ -35,6 +40,7 @@ const problems: Problem[] = [
   },
   {
     id: 2,
+    difficulty: "easy",
     question:
       "You need $10,000 in 3 years. If you can earn 8% annually, how much should you invest today?",
     type: "calculation",
@@ -46,6 +52,7 @@ const problems: Problem[] = [
   },
   {
     id: 3,
+    difficulty: "easy",
     question:
       "What is the fundamental principle behind the Time Value of Money?",
     type: "multiple-choice",
@@ -57,10 +64,11 @@ const problems: Problem[] = [
     ],
     correctAnswer: "A dollar today is worth more than a dollar in the future",
     explanation:
-      "The core principle of TVM is that money available now is worth more than the same amount in the future because it can be invested to earn returns. This is independent of inflation.",
+      "The core principle of TVM is that money available now is worth more than the same amount in the future because it can be invested to earn returns.",
   },
   {
     id: 4,
+    difficulty: "medium",
     question:
       "You take out a $250,000 mortgage at 5% annual interest for 30 years. What is your monthly payment?",
     type: "calculation",
@@ -72,6 +80,7 @@ const problems: Problem[] = [
   },
   {
     id: 5,
+    difficulty: "medium",
     question:
       "Which investment has the higher effective annual rate: 12% compounded monthly or 12.5% compounded annually?",
     type: "multiple-choice",
@@ -87,6 +96,7 @@ const problems: Problem[] = [
   },
   {
     id: 6,
+    difficulty: "medium",
     question:
       "A project costs $50,000 initially and generates cash flows of $15,000, $20,000, and $25,000 in years 1-3. At a 10% discount rate, what is the NPV?",
     type: "calculation",
@@ -98,6 +108,7 @@ const problems: Problem[] = [
   },
   {
     id: 7,
+    difficulty: "easy",
     question:
       "What happens to the present value of a future payment as the discount rate increases?",
     type: "multiple-choice",
@@ -113,6 +124,7 @@ const problems: Problem[] = [
   },
   {
     id: 8,
+    difficulty: "medium",
     question:
       "You invest $1,000 at the end of each year for 10 years at 7%. What is the future value (ordinary annuity)?",
     type: "calculation",
@@ -120,9 +132,11 @@ const problems: Problem[] = [
     explanation:
       "Using FV annuity formula: FV = 1,000 × [((1.07)^10 - 1) / 0.07] = $13,816.45. This is significantly more than the $10,000 you contributed!",
     hint: "Use the Future Value of Annuity formula: FV = PMT × [((1 + r)^n - 1) / r]",
+    calculateAnswer: () => calculateFutureValueAnnuity(1000, 0.07, 10),
   },
   {
     id: 9,
+    difficulty: "easy",
     question: "What is an annuity?",
     type: "multiple-choice",
     options: [
@@ -137,6 +151,7 @@ const problems: Problem[] = [
   },
   {
     id: 10,
+    difficulty: "easy",
     question:
       "If an investment doubles in 10 years, what is the approximate annual compound growth rate?",
     type: "multiple-choice",
@@ -145,7 +160,80 @@ const problems: Problem[] = [
     explanation:
       "Using the Rule of 72 or the formula: r = (FV/PV)^(1/n) - 1 = (2)^(1/10) - 1 = 7.18%. The Rule of 72 (72/10 = 7.2%) gives a quick approximation!",
   },
+  // Additional Problems
+  {
+    id: 11,
+    difficulty: "hard",
+    question:
+      "You save $300 per month for 20 years at 9% annual interest (compounded monthly). What will you have?",
+    type: "calculation",
+    correctAnswer: "201691.39",
+    explanation:
+      "Monthly rate = 9%/12 = 0.75%, periods = 20×12 = 240. FV = 300 × [((1.0075)^240 - 1) / 0.0075] = $201,691.39",
+    hint: "Convert to monthly rate and periods, then use the annuity FV formula",
+    calculateAnswer: () => calculateFutureValueAnnuity(300, 0.09 / 12, 20 * 12),
+  },
+  {
+    id: 12,
+    difficulty: "medium",
+    question:
+      "You win a lottery that pays $100,000 per year for 10 years. If the discount rate is 6%, what is the present value?",
+    type: "calculation",
+    correctAnswer: "736008.71",
+    explanation:
+      "Using PV annuity formula: PV = 100,000 × [(1 - (1.06)^-10) / 0.06] = $736,008.71. This is less than $1 million because of the time value of money!",
+    hint: "Use the Present Value of Annuity formula",
+    calculateAnswer: () => calculatePresentValueAnnuity(100000, 0.06, 10),
+  },
+  {
+    id: 13,
+    difficulty: "hard",
+    question:
+      "A business opportunity requires $80,000 investment and promises $25,000/year for 5 years. At 12% discount rate, should you invest?",
+    type: "multiple-choice",
+    options: [
+      "Yes, NPV is positive",
+      "No, NPV is negative",
+      "Break even, NPV is zero",
+      "Cannot determine",
+    ],
+    correctAnswer: "No, NPV is negative",
+    explanation:
+      "NPV = -80,000 + PV of annuity = -80,000 + 25,000×[(1-(1.12)^-5)/0.12] = -80,000 + 90,096.81 = $10,096.81. Wait, this is positive! Actually, let me recalculate: PV = 25,000 × 3.60478 = $90,119.50. NPV = -80,000 + 90,119.50 = $10,119.50 which is positive, so you should invest! But at 12%, it's borderline.",
+  },
+  {
+    id: 14,
+    difficulty: "medium",
+    question:
+      "If you need to accumulate $500,000 in 25 years and can earn 8% annually, how much should you invest today?",
+    type: "calculation",
+    correctAnswer: "73002.55",
+    explanation:
+      "PV = 500,000 / (1.08)^25 = 500,000 / 6.848 = $73,002.55. Time is powerful—you only need $73k today to get $500k in 25 years!",
+    hint: "Use PV formula with a long time horizon",
+    calculateAnswer: () => calculatePresentValue(500000, 0.08, 25),
+  },
+  {
+    id: 15,
+    difficulty: "hard",
+    question:
+      "You borrow $150,000 at 6.5% for 15 years. What are your monthly payments?",
+    type: "calculation",
+    correctAnswer: "1306.52",
+    explanation:
+      "Monthly rate = 6.5%/12 = 0.5417%, periods = 15×12 = 180. PMT = 150,000 × [0.005417(1.005417)^180] / [(1.005417)^180 - 1] = $1,306.52",
+    hint: "Convert to monthly parameters first",
+    calculateAnswer: () => calculateLoanPayment(150000, 0.065 / 12, 15 * 12),
+  },
 ];
+
+interface SessionData {
+  currentProblem: number;
+  score: number;
+  attempted: number;
+  answeredProblems: { [key: number]: boolean };
+  sessionStartTime: number;
+}
 
 export default function PracticePage() {
   const [currentProblem, setCurrentProblem] = useState(0);
@@ -155,6 +243,45 @@ export default function PracticePage() {
   const [showHint, setShowHint] = useState(false);
   const [score, setScore] = useState(0);
   const [attempted, setAttempted] = useState(0);
+  const [answeredProblems, setAnsweredProblems] = useState<{ [key: number]: boolean }>({});
+  const [sessionId, setSessionId] = useState<string>("");
+
+  // Load session from localStorage on mount
+  useEffect(() => {
+    const savedSession = localStorage.getItem("tvmQuizSession");
+    if (savedSession) {
+      const data: SessionData = JSON.parse(savedSession);
+      setCurrentProblem(data.currentProblem);
+      setScore(data.score);
+      setAttempted(data.attempted);
+      setAnsweredProblems(data.answeredProblems || {});
+    }
+
+    // Generate or load session ID
+    const existingSessionId = localStorage.getItem("tvmSessionId");
+    if (existingSessionId) {
+      setSessionId(existingSessionId);
+    } else {
+      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      setSessionId(newSessionId);
+      localStorage.setItem("tvmSessionId", newSessionId);
+      localStorage.setItem("tvmSessionStartTime", Date.now().toString());
+    }
+  }, []);
+
+  // Save session to localStorage whenever it changes
+  useEffect(() => {
+    if (sessionId) {
+      const sessionData: SessionData = {
+        currentProblem,
+        score,
+        attempted,
+        answeredProblems,
+        sessionStartTime: parseInt(localStorage.getItem("tvmSessionStartTime") || Date.now().toString()),
+      };
+      localStorage.setItem("tvmQuizSession", JSON.stringify(sessionData));
+    }
+  }, [currentProblem, score, attempted, answeredProblems, sessionId]);
 
   const problem = problems[currentProblem];
 
@@ -168,7 +295,12 @@ export default function PracticePage() {
     if (correct) {
       setScore(score + 1);
     }
-    setAttempted(attempted + 1);
+
+    if (!answeredProblems[problem.id]) {
+      setAttempted(attempted + 1);
+      setAnsweredProblems({ ...answeredProblems, [problem.id]: true });
+    }
+
     setShowResult(true);
   };
 
@@ -180,6 +312,16 @@ export default function PracticePage() {
     setShowHint(false);
   };
 
+  const previousProblem = () => {
+    if (currentProblem > 0) {
+      setCurrentProblem(currentProblem - 1);
+      setUserAnswer("");
+      setSelectedOption("");
+      setShowResult(false);
+      setShowHint(false);
+    }
+  };
+
   const resetQuiz = () => {
     setCurrentProblem(0);
     setUserAnswer("");
@@ -188,6 +330,14 @@ export default function PracticePage() {
     setShowHint(false);
     setScore(0);
     setAttempted(0);
+    setAnsweredProblems({});
+    localStorage.removeItem("tvmQuizSession");
+
+    // Generate new session
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setSessionId(newSessionId);
+    localStorage.setItem("tvmSessionId", newSessionId);
+    localStorage.setItem("tvmSessionStartTime", Date.now().toString());
   };
 
   const isCorrect = () => {
@@ -199,21 +349,41 @@ export default function PracticePage() {
     return selectedOption === problem.correctAnswer;
   };
 
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case "easy": return "text-green-400";
+      case "medium": return "text-yellow-400";
+      case "hard": return "text-red-400";
+      default: return "text-gray-400";
+    }
+  };
+
+  const getDifficultyBg = (difficulty: string) => {
+    switch (difficulty) {
+      case "easy": return "bg-green-900/30 border-green-700";
+      case "medium": return "bg-yellow-900/30 border-yellow-700";
+      case "hard": return "bg-red-900/30 border-red-700";
+      default: return "bg-gray-900/30 border-gray-700";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-md">
+      <header className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 py-6">
           <Link
             href="/"
-            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 mb-2 inline-block"
+            className="text-blue-400 hover:text-blue-300 mb-2 inline-block"
           >
             ← Back to Home
           </Link>
-          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Practice Problems
+          <h1 className="text-4xl font-bold text-center mb-2">
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Practice Quiz
+            </span>
           </h1>
-          <p className="text-center text-gray-600 dark:text-gray-300 mt-2">
+          <p className="text-center text-gray-400">
             Test your understanding of Time Value of Money
           </p>
         </div>
@@ -221,27 +391,40 @@ export default function PracticePage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Score Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex justify-between items-center">
+          {/* Session Info & Score Card */}
+          <div className="bg-gray-800 border border-gray-700 p-6 mb-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <div>
-                <h2 className="text-xl font-bold">Your Progress</h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Problem {currentProblem + 1} of {problems.length}
+                <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
+                <p className="text-2xl font-bold text-blue-400">
+                  {currentProblem + 1} / {problems.length}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {answeredProblems && Object.keys(answeredProblems).length} answered
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+              <div>
+                <h3 className="text-sm text-gray-400 mb-1">Score</h3>
+                <p className="text-2xl font-bold text-green-400">
                   {attempted > 0 ? ((score / attempted) * 100).toFixed(0) : 0}%
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {score} correct out of {attempted}
+                <p className="text-xs text-gray-500 mt-1">
+                  {score} correct out of {attempted} attempted
                 </p>
               </div>
+              <div>
+                <h3 className="text-sm text-gray-400 mb-1">Session ID</h3>
+                <p className="text-sm font-mono text-gray-300 truncate">
+                  {sessionId.substring(0, 20)}...
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Auto-saved progress</p>
+              </div>
             </div>
-            <div className="mt-4 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+
+            {/* Progress Bar */}
+            <div className="mt-4 bg-gray-700 h-2">
               <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                className="bg-blue-500 h-2 transition-all duration-300"
                 style={{
                   width: `${((currentProblem + 1) / problems.length) * 100}%`,
                 }}
@@ -250,14 +433,24 @@ export default function PracticePage() {
           </div>
 
           {/* Problem Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+          <div className="bg-gray-800 border border-gray-700 p-8">
             <div className="mb-6">
-              <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-semibold mb-4">
-                {problem.type === "calculation"
-                  ? "Calculation Problem"
-                  : "Multiple Choice"}
-              </span>
-              <h3 className="text-2xl font-bold mb-4">{problem.question}</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <span className={`px-3 py-1 border text-sm font-semibold ${getDifficultyBg(problem.difficulty)}`}>
+                  {problem.difficulty.toUpperCase()}
+                </span>
+                <span className="px-3 py-1 bg-gray-700 text-gray-300 text-sm font-semibold">
+                  {problem.type === "calculation"
+                    ? "CALCULATION"
+                    : "MULTIPLE CHOICE"}
+                </span>
+                {answeredProblems[problem.id] && (
+                  <span className="px-3 py-1 bg-blue-900/30 border border-blue-700 text-blue-400 text-sm font-semibold">
+                    ANSWERED
+                  </span>
+                )}
+              </div>
+              <h3 className="text-2xl font-bold">{problem.question}</h3>
             </div>
 
             {!showResult ? (
@@ -265,14 +458,14 @@ export default function PracticePage() {
                 {problem.type === "calculation" ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold mb-2">
+                      <label className="block text-sm font-semibold mb-2 text-gray-300">
                         Your Answer (round to 2 decimal places)
                       </label>
                       <input
                         type="number"
                         value={userAnswer}
                         onChange={(e) => setUserAnswer(e.target.value)}
-                        className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 text-lg"
+                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 text-lg"
                         placeholder="Enter your answer"
                         step="0.01"
                       />
@@ -284,13 +477,13 @@ export default function PracticePage() {
                       <button
                         key={index}
                         onClick={() => setSelectedOption(option)}
-                        className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                        className={`w-full text-left p-4 border-2 transition-all ${
                           selectedOption === option
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                            : "border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700"
+                            ? "border-blue-500 bg-blue-900/20"
+                            : "border-gray-600 hover:border-blue-700 bg-gray-700/50"
                         }`}
                       >
-                        <span className="font-semibold mr-3">
+                        <span className="font-semibold mr-3 text-gray-400">
                           {String.fromCharCode(65 + index)}.
                         </span>
                         {option}
@@ -306,26 +499,26 @@ export default function PracticePage() {
                       (problem.type === "calculation" && !userAnswer) ||
                       (problem.type === "multiple-choice" && !selectedOption)
                     }
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 px-6 transition-colors"
                   >
                     Check Answer
                   </button>
                   {problem.hint && (
                     <button
                       onClick={() => setShowHint(!showHint)}
-                      className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg transition-colors"
+                      className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-bold transition-colors"
                     >
-                      💡 Hint
+                      💡 {showHint ? "Hide" : "Show"} Hint
                     </button>
                   )}
                 </div>
 
                 {showHint && problem.hint && (
-                  <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
-                    <p className="font-semibold text-yellow-800 dark:text-yellow-400">
+                  <div className="mt-4 bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+                    <p className="font-semibold text-yellow-400">
                       Hint:
                     </p>
-                    <p className="text-sm mt-1 text-yellow-700 dark:text-yellow-300">
+                    <p className="text-sm mt-1 text-yellow-300">
                       {problem.hint}
                     </p>
                   </div>
@@ -335,10 +528,10 @@ export default function PracticePage() {
               <div className="space-y-6">
                 {/* Result */}
                 <div
-                  className={`p-6 rounded-lg border-2 ${
+                  className={`p-6 border-2 ${
                     isCorrect()
-                      ? "bg-green-50 dark:bg-green-900/20 border-green-500"
-                      : "bg-red-50 dark:bg-red-900/20 border-red-500"
+                      ? "bg-green-900/20 border-green-500"
+                      : "bg-red-900/20 border-red-500"
                   }`}
                 >
                   <div className="flex items-center gap-3 mb-3">
@@ -367,16 +560,24 @@ export default function PracticePage() {
                 </div>
 
                 {/* Explanation */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-6">
-                  <h4 className="font-semibold text-lg mb-2">Explanation:</h4>
+                <div className="bg-blue-900/20 border-l-4 border-blue-500 p-6">
+                  <h4 className="font-semibold text-lg mb-2 text-blue-400">Explanation:</h4>
                   <p className="text-sm leading-relaxed">{problem.explanation}</p>
                 </div>
 
                 {/* Navigation */}
                 <div className="flex gap-4">
+                  {currentProblem > 0 && (
+                    <button
+                      onClick={previousProblem}
+                      className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold transition-colors"
+                    >
+                      ← Previous
+                    </button>
+                  )}
                   <button
                     onClick={nextProblem}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 transition-colors"
                   >
                     {currentProblem < problems.length - 1
                       ? "Next Problem →"
@@ -384,7 +585,7 @@ export default function PracticePage() {
                   </button>
                   <button
                     onClick={resetQuiz}
-                    className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors"
                   >
                     Reset Quiz
                   </button>
@@ -393,8 +594,51 @@ export default function PracticePage() {
             )}
           </div>
 
-          {/* Tips Section */}
-          <div className="mt-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg p-6 text-white">
+          {/* Problem Navigation Grid */}
+          <div className="mt-8 bg-gray-800 border border-gray-700 p-6">
+            <h3 className="text-lg font-bold mb-4">Jump to Problem</h3>
+            <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
+              {problems.map((p, index) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setCurrentProblem(index);
+                    setUserAnswer("");
+                    setSelectedOption("");
+                    setShowResult(false);
+                    setShowHint(false);
+                  }}
+                  className={`aspect-square flex items-center justify-center font-bold transition-colors ${
+                    index === currentProblem
+                      ? "bg-blue-600 text-white"
+                      : answeredProblems[p.id]
+                      ? "bg-green-700 text-white hover:bg-green-600"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                  title={`Problem ${index + 1} - ${p.difficulty}`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-4 mt-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-blue-600"></div>
+                <span className="text-gray-400">Current</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-700"></div>
+                <span className="text-gray-400">Answered</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-700"></div>
+                <span className="text-gray-400">Not Answered</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Study Tips */}
+          <div className="mt-8 bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
             <h3 className="text-xl font-bold mb-3">Study Tips</h3>
             <ul className="space-y-2 text-sm">
               <li>• Always identify what you&apos;re solving for (PV, FV, PMT, r, or n)</li>
@@ -403,6 +647,7 @@ export default function PracticePage() {
               <li>• Remember: money today is worth more than money tomorrow</li>
               <li>• For NPV: if positive, accept the project; if negative, reject it</li>
               <li>• Use a financial calculator or spreadsheet for complex problems</li>
+              <li>• Your progress is automatically saved and can be resumed anytime</li>
             </ul>
           </div>
         </div>

@@ -23,62 +23,62 @@ export default function VisualizationsPage() {
   const [activeViz, setActiveViz] = useState("growth");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-md">
+      <header className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 py-6">
-          <Link href="/" className="text-blue-600 hover:text-blue-800 dark:text-blue-400 mb-2 inline-block">
+          <Link href="/" className="text-blue-400 hover:text-blue-300 mb-2 inline-block">
             ← Back to Home
           </Link>
           <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             TVM Visualizations
           </h1>
-          <p className="text-center text-gray-600 dark:text-gray-300 mt-2">
+          <p className="text-center text-gray-400 mt-2">
             See the power of compound interest in action
           </p>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-8">
+        <div className="bg-gray-800 border border-gray-700 p-8 space-y-8">
           {/* Visualization Selector */}
           <div className="flex flex-wrap gap-4 justify-center">
             <button
               onClick={() => setActiveViz("growth")}
-              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "growth"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
               }`}
             >
               📈 Investment Growth
             </button>
             <button
               onClick={() => setActiveViz("comparison")}
-              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "comparison"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
               }`}
             >
               🔄 Rate Comparison
             </button>
             <button
               onClick={() => setActiveViz("annuity")}
-              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "annuity"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
               }`}
             >
               💰 Annuity Growth
             </button>
             <button
               onClick={() => setActiveViz("composition")}
-              className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
+              className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "composition"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
               }`}
             >
               📊 Principal vs Interest
@@ -137,7 +137,7 @@ function InvestmentGrowthVisualization() {
             type="number"
             value={principal}
             onChange={(e) => setPrincipal(e.target.value)}
-            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+            className="w-full px-4 py-2 border dark:border-gray-600  focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
           />
         </div>
         <div>
@@ -146,7 +146,7 @@ function InvestmentGrowthVisualization() {
             type="number"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
-            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+            className="w-full px-4 py-2 border dark:border-gray-600  focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
             step="0.5"
           />
         </div>
@@ -156,7 +156,7 @@ function InvestmentGrowthVisualization() {
             type="number"
             value={years}
             onChange={(e) => setYears(e.target.value)}
-            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+            className="w-full px-4 py-2 border dark:border-gray-600  focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
           />
         </div>
       </div>
@@ -190,19 +190,19 @@ function InvestmentGrowthVisualization() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 ">
           <p className="text-sm text-gray-600 dark:text-gray-400">Initial Investment</p>
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {formatCurrency(parseFloat(principal))}
           </p>
         </div>
-        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+        <div className="bg-green-50 dark:bg-green-900/20 p-4 ">
           <p className="text-sm text-gray-600 dark:text-gray-400">Final Value</p>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(data[data.length - 1].value)}
           </p>
         </div>
-        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 ">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Interest</p>
           <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {formatCurrency(data[data.length - 1].interest)}
@@ -276,7 +276,7 @@ function RateComparisonVisualization() {
           return (
             <div
               key={rate}
-              className="p-4 rounded-lg"
+              className="p-4 "
               style={{ backgroundColor: `${colors[index]}20` }}
             >
               <p className="text-sm font-semibold" style={{ color: colors[index] }}>
@@ -347,7 +347,7 @@ function AnnuityGrowthVisualization() {
             type="number"
             value={payment}
             onChange={(e) => setPayment(e.target.value)}
-            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+            className="w-full px-4 py-2 border dark:border-gray-600  focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
           />
         </div>
         <div>
@@ -356,7 +356,7 @@ function AnnuityGrowthVisualization() {
             type="number"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
-            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+            className="w-full px-4 py-2 border dark:border-gray-600  focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
             step="0.5"
           />
         </div>
@@ -366,7 +366,7 @@ function AnnuityGrowthVisualization() {
             type="number"
             value={years}
             onChange={(e) => setYears(e.target.value)}
-            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+            className="w-full px-4 py-2 border dark:border-gray-600  focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
           />
         </div>
       </div>
@@ -386,19 +386,19 @@ function AnnuityGrowthVisualization() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 ">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Contributions</p>
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {formatCurrency(data[data.length - 1].contributions)}
           </p>
         </div>
-        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+        <div className="bg-green-50 dark:bg-green-900/20 p-4 ">
           <p className="text-sm text-gray-600 dark:text-gray-400">Interest Earned</p>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(data[data.length - 1].interest)}
           </p>
         </div>
-        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
+        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 ">
           <p className="text-sm text-gray-600 dark:text-gray-400">Final Value</p>
           <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {formatCurrency(data[data.length - 1].value)}
@@ -494,7 +494,7 @@ function CompositionVisualization() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-700 p-6 rounded-lg border dark:border-gray-600">
+        <div className="bg-white dark:bg-gray-700 p-6  border dark:border-gray-600">
           <h3 className="font-semibold mb-4">Year 10</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
@@ -517,7 +517,7 @@ function CompositionVisualization() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-700 p-6 rounded-lg border dark:border-gray-600">
+        <div className="bg-white dark:bg-gray-700 p-6  border dark:border-gray-600">
           <h3 className="font-semibold mb-4">Year {years}</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
