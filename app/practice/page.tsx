@@ -11,6 +11,8 @@ import {
   calculatePresentValueAnnuity,
 } from "@/lib/tvmCalculations";
 import { formatCurrency, formatPercentage } from "@/lib/formatters";
+import { useQuizSocket } from "@/hooks/useQuizSocket";
+import RealtimePerformance from "@/components/RealtimePerformance";
 
 interface Problem {
   id: number;
@@ -245,6 +247,17 @@ export default function PracticePage() {
   const [attempted, setAttempted] = useState(0);
   const [answeredProblems, setAnsweredProblems] = useState<{ [key: number]: boolean }>({});
   const [sessionId, setSessionId] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
+  const [sessionStarted, setSessionStarted] = useState(false);
+
+  // Initialize websocket connection (only when session is started)
+  const { isConnected, participants, totalParticipants, updateProgress } =
+    useQuizSocket(
+      sessionStarted ? sessionId : "",
+      sessionStarted ? userId : "",
+      sessionStarted ? userName : ""
+    );
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -256,6 +269,14 @@ export default function PracticePage() {
       setAttempted(data.attempted);
       setAnsweredProblems(data.answeredProblems || {});
     }
+
+    // Generate or load user ID
+    let existingUserId = localStorage.getItem("tvmUserId");
+    if (!existingUserId) {
+      existingUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem("tvmUserId", existingUserId);
+    }
+    setUserId(existingUserId);
 
     // Generate or load session ID
     const existingSessionId = localStorage.getItem("tvmSessionId");
@@ -282,6 +303,14 @@ export default function PracticePage() {
       localStorage.setItem("tvmQuizSession", JSON.stringify(sessionData));
     }
   }, [currentProblem, score, attempted, answeredProblems, sessionId]);
+
+  // Update progress via websocket when score changes
+  useEffect(() => {
+    if (sessionStarted && isConnected) {
+      const progress = ((currentProblem + 1) / problems.length) * 100;
+      updateProgress(score, attempted, progress);
+    }
+  }, [score, attempted, currentProblem, sessionStarted, isConnected, updateProgress]);
 
   const problem = problems[currentProblem];
 
@@ -367,6 +396,13 @@ export default function PracticePage() {
     }
   };
 
+  // Handle session start
+  const handleStartSession = () => {
+    if (userName.trim()) {
+      setSessionStarted(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Header */}
@@ -389,8 +425,53 @@ export default function PracticePage() {
         </div>
       </header>
 
+      {/* Welcome Modal - Show before session starts */}
+      {!sessionStarted && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+          <div className="bg-gray-800 border border-gray-700 p-8 max-w-md w-full">
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Welcome to Live Quiz!
+            </h2>
+            <p className="text-gray-400 mb-6">
+              Join the collaborative quiz session and see how you compare with other participants in real-time!
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") handleStartSession();
+                  }}
+                  placeholder="Enter your name..."
+                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 text-white focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                />
+              </div>
+              <button
+                onClick={handleStartSession}
+                disabled={!userName.trim()}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-6 hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start Quiz Session
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-4 text-center">
+              Session ID: {sessionId.substring(0, 15)}...
+            </p>
+          </div>
+        </div>
+      )}
+
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Quiz Section - Left/Main Column */}
+            <div className="lg:col-span-2 space-y-6">
           {/* Session Info & Score Card */}
           <div className="bg-gray-800 border border-gray-700 p-6 mb-6">
             <div className="grid md:grid-cols-3 gap-6">
@@ -595,7 +676,7 @@ export default function PracticePage() {
           </div>
 
           {/* Problem Navigation Grid */}
-          <div className="mt-8 bg-gray-800 border border-gray-700 p-6">
+          <div className="bg-gray-800 border border-gray-700 p-6">
             <h3 className="text-lg font-bold mb-4">Jump to Problem</h3>
             <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
               {problems.map((p, index) => (
@@ -638,7 +719,7 @@ export default function PracticePage() {
           </div>
 
           {/* Study Tips */}
-          <div className="mt-8 bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
+          <div className="bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
             <h3 className="text-xl font-bold mb-3">Study Tips</h3>
             <ul className="space-y-2 text-sm">
               <li>• Always identify what you&apos;re solving for (PV, FV, PMT, r, or n)</li>
@@ -649,6 +730,22 @@ export default function PracticePage() {
               <li>• Use a financial calculator or spreadsheet for complex problems</li>
               <li>• Your progress is automatically saved and can be resumed anytime</li>
             </ul>
+          </div>
+            </div>
+
+            {/* Realtime Performance - Right Column */}
+            <div className="lg:col-span-1">
+              {sessionStarted && (
+                <div className="lg:sticky lg:top-4">
+                  <RealtimePerformance
+                    participants={participants}
+                    totalParticipants={totalParticipants}
+                    isConnected={isConnected}
+                    currentUserId={userId}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>
