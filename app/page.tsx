@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FormulaBox } from "@/components/Math";
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState<string | null>("intro");
@@ -53,9 +54,7 @@ export default function Home() {
             <div className="bg-gray-800 p-5">
               <h4 className="text-xl font-semibold mb-3 text-blue-400">Present Value (PV)</h4>
               <p className="mb-3">The current value of money. What you have <strong>today</strong>.</p>
-              <div className="bg-gray-900 p-4 font-mono text-sm border-l-2 border-blue-500">
-                PV = FV / (1 + r)^n
-              </div>
+              <FormulaBox formula="PV = \frac{FV}{(1 + r)^n}" className="border-l-4 border-blue-500" />
               <p className="text-sm text-gray-400 mt-3">
                 Think of it as: &quot;How much is that future payment worth to me right now?&quot;
               </p>
@@ -64,9 +63,7 @@ export default function Home() {
             <div className="bg-gray-800 p-5">
               <h4 className="text-xl font-semibold mb-3 text-green-400">Future Value (FV)</h4>
               <p className="mb-3">What your money will grow to over time. The value <strong>in the future</strong>.</p>
-              <div className="bg-gray-900 p-4 font-mono text-sm border-l-2 border-green-500">
-                FV = PV × (1 + r)^n
-              </div>
+              <FormulaBox formula="FV = PV \times (1 + r)^n" className="border-l-4 border-green-500" />
               <p className="text-sm text-gray-400 mt-3">
                 Think of it as: &quot;If I invest this money today, how much will I have later?&quot;
               </p>
@@ -110,12 +107,9 @@ export default function Home() {
               <p>You want to buy a car that costs <strong className="text-green-400">$25,000</strong> in 3 years. If you can invest at 6% annually, how much should you save today?</p>
 
               <div className="bg-gray-900 p-4">
-                <div className="font-mono text-sm space-y-2">
-                  <div>Given: FV = $25,000, r = 6% = 0.06, n = 3 years</div>
-                  <div className="text-blue-400">PV = FV / (1 + r)^n</div>
-                  <div>PV = $25,000 / (1.06)^3</div>
-                  <div>PV = $25,000 / 1.191016</div>
-                  <div className="text-green-400 font-bold">PV = $20,990.66</div>
+                <div className="space-y-3">
+                  <div className="text-sm">Given: FV = $25,000, r = 6% = 0.06, n = 3 years</div>
+                  <FormulaBox formula="PV = \frac{FV}{(1 + r)^n} = \frac{\$25{,}000}{(1.06)^3} = \frac{\$25{,}000}{1.191016} = \$20{,}990.66" className="border-l-4 border-blue-500" />
                 </div>
               </div>
 
@@ -155,12 +149,9 @@ export default function Home() {
               <p>You invest <strong className="text-blue-400">$50,000</strong> today at 7% annually for 5 years. How much will you have for a house down payment?</p>
 
               <div className="bg-gray-900 p-4">
-                <div className="font-mono text-sm space-y-2">
-                  <div>Given: PV = $50,000, r = 7% = 0.07, n = 5 years</div>
-                  <div className="text-green-400">FV = PV × (1 + r)^n</div>
-                  <div>FV = $50,000 × (1.07)^5</div>
-                  <div>FV = $50,000 × 1.402552</div>
-                  <div className="text-green-400 font-bold">FV = $70,127.60</div>
+                <div className="space-y-3">
+                  <div className="text-sm">Given: PV = $50,000, r = 7% = 0.07, n = 5 years</div>
+                  <FormulaBox formula="FV = PV \times (1 + r)^n = \$50{,}000 \times (1.07)^5 = \$50{,}000 \times 1.402552 = \$70{,}127.60" className="border-l-4 border-green-500" />
                 </div>
               </div>
 
@@ -195,11 +186,9 @@ export default function Home() {
               <p>You save <strong className="text-purple-400">$500/month</strong> for 30 years at 8% annual return. How much will you have?</p>
 
               <div className="bg-gray-900 p-4">
-                <div className="font-mono text-sm space-y-2">
-                  <div>Given: PMT = $500, r = 8%/12 = 0.00667, n = 30×12 = 360 months</div>
-                  <div className="text-purple-400">FV = PMT × [((1 + r)^n - 1) / r]</div>
-                  <div>FV = $500 × [((1.00667)^360 - 1) / 0.00667]</div>
-                  <div className="text-green-400 font-bold">FV = $745,179.85</div>
+                <div className="space-y-3">
+                  <div className="text-sm">Given: PMT = $500, r = 8%/12 = 0.00667, n = 30×12 = 360 months</div>
+                  <FormulaBox formula="FV = PMT \times \frac{(1 + r)^n - 1}{r} = \$500 \times \frac{(1.00667)^{360} - 1}{0.00667} = \$745{,}179.85" className="border-l-4 border-purple-500" />
                 </div>
               </div>
 
@@ -322,9 +311,7 @@ export default function Home() {
             <h4 className="text-xl font-semibold mb-4 text-purple-400">🎯 The Rule of 72</h4>
             <p className="mb-4">Want a quick way to estimate how long it takes to double your money?</p>
 
-            <div className="bg-gray-900 p-4 text-center">
-              <div className="text-3xl font-bold text-purple-400 mb-2">Years to Double = 72 / Interest Rate</div>
-            </div>
+            <FormulaBox formula="\text{Years to Double} = \frac{72}{\text{Interest Rate}}" className="text-center border-l-4 border-purple-500" />
 
             <div className="grid md:grid-cols-2 gap-4 mt-4">
               <div className="bg-gray-900 p-4">
@@ -633,11 +620,11 @@ export default function Home() {
             </div>
             <div>
               <h3 className="font-semibold text-lg mb-3 text-purple-300">Key Formulas</h3>
-              <div className="space-y-2 text-sm font-mono">
-                <div className="bg-gray-900/50 p-2">FV = PV × (1 + r)^n</div>
-                <div className="bg-gray-900/50 p-2">PV = FV / (1 + r)^n</div>
-                <div className="bg-gray-900/50 p-2">FV<sub>annuity</sub> = PMT × [((1+r)^n-1)/r]</div>
-                <div className="bg-gray-900/50 p-2">PV<sub>annuity</sub> = PMT × [(1-(1+r)^-n)/r]</div>
+              <div className="space-y-2 text-sm">
+                <FormulaBox formula="FV = PV \times (1 + r)^n" className="p-2" />
+                <FormulaBox formula="PV = \frac{FV}{(1 + r)^n}" className="p-2" />
+                <FormulaBox formula="FV_{\text{annuity}} = PMT \times \frac{(1+r)^n-1}{r}" className="p-2" />
+                <FormulaBox formula="PV_{\text{annuity}} = PMT \times \frac{1-(1+r)^{-n}}{r}" className="p-2" />
               </div>
             </div>
           </div>

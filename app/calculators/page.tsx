@@ -13,6 +13,7 @@ import {
   generateAmortizationSchedule,
 } from "@/lib/tvmCalculations";
 import { formatCurrency, formatPercentage } from "@/lib/formatters";
+import { FormulaBox } from "@/components/Math";
 
 export default function CalculatorsPage() {
   const [activeTab, setActiveTab] = useState("fv");
@@ -99,9 +100,7 @@ function FutureValueCalculator() {
         <p className="text-gray-600 text-gray-400">
           Calculate how much a present sum will grow to in the future
         </p>
-        <p className="text-sm mt-2 bg-gray-900 p-3 font-mono border-l-2 border-blue-500">
-          FV = PV × (1 + r)^n
-        </p>
+        <FormulaBox formula="FV = PV \times (1 + r)^n" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -195,9 +194,7 @@ function PresentValueCalculator() {
         <p className="text-gray-600 text-gray-400">
           Calculate what a future sum is worth in today&apos;s dollars
         </p>
-        <p className="text-sm mt-2 bg-blue-50 bg-gray-900 p-3 rounded font-mono">
-          PV = FV / (1 + r)^n
-        </p>
+        <FormulaBox formula="PV = \frac{FV}{(1 + r)^n}" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -431,9 +428,7 @@ function LoanCalculator() {
         <p className="text-gray-600 text-gray-400">
           Calculate monthly payment and view amortization schedule
         </p>
-        <p className="text-sm mt-2 bg-blue-50 bg-gray-900 p-3 rounded font-mono">
-          PMT = PV × [r(1 + r)^n] / [(1 + r)^n - 1]
-        </p>
+        <FormulaBox formula="PMT = PV \times \frac{r(1 + r)^n}{(1 + r)^n - 1}" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">

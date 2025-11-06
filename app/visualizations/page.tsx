@@ -48,7 +48,7 @@ export default function VisualizationsPage() {
               className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "growth"
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
+                  : "bg-gray-700 text-white hover:bg-gray-600"
               }`}
             >
               📈 Investment Growth
@@ -58,7 +58,7 @@ export default function VisualizationsPage() {
               className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "comparison"
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
+                  : "bg-gray-700 text-white hover:bg-gray-600"
               }`}
             >
               🔄 Rate Comparison
@@ -68,7 +68,7 @@ export default function VisualizationsPage() {
               className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "annuity"
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
+                  : "bg-gray-700 text-white hover:bg-gray-600"
               }`}
             >
               💰 Annuity Growth
@@ -78,7 +78,7 @@ export default function VisualizationsPage() {
               className={`px-6 py-3  font-semibold transition-colors ${
                 activeViz === "composition"
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-700 dark:text-gray-300"
+                  : "bg-gray-700 text-white hover:bg-gray-600"
               }`}
             >
               📊 Principal vs Interest
