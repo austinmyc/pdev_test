@@ -12,7 +12,7 @@ export default function Home() {
   const tutorials = [
     {
       id: "teaching-plan",
-      title: "Guided Learning: Interactive Teaching Plan",
+      title: "Guided Learning",
       content: (
         <div className="space-y-8">
           {/* Step 1: Opening Questions */}
@@ -378,7 +378,7 @@ export default function Home() {
     },
     {
       id: "examples",
-      title: "Real-World Examples with Visuals",
+      title: "Real-World Examples",
       content: (
         <div className="space-y-8">
           {/* Car Purchase Example */}
@@ -503,7 +503,7 @@ export default function Home() {
     },
     {
       id: "relationship",
-      title: "The Relationship Between Rate, Time, and Value",
+      title: "Rate, Time, and Value",
       content: (
         <div className="space-y-6">
           <p className="text-lg">Understanding how interest rates and time affect money is crucial. Let&apos;s explore:</p>
@@ -809,13 +809,13 @@ export default function Home() {
         {/* Tutorial System */}
         <div className="bg-gray-800 border border-gray-700 mb-12">
           <div className="border-b border-gray-700 p-6">
-            <h2 className="text-3xl font-bold text-center">Complete Tutorial</h2>
+            <h2 className="text-3xl font-bold text-center">A small course on Time Value of Money</h2>
             <p className="text-center text-gray-400 mt-2">Work through these sections to master TVM</p>
           </div>
 
           {/* Tutorial Navigation */}
           <div className="border-b border-gray-700 p-4 bg-gray-850">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 justify-center">
               {tutorials.map((tutorial, index) => (
                 <button
                   key={tutorial.id}
@@ -826,7 +826,7 @@ export default function Home() {
                       : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                   }`}
                 >
-                  {index + 1}. {tutorial.title.split(':')[0]}
+                  {index}. {tutorial.title.split(':')[0]}
                 </button>
               ))}
             </div>
