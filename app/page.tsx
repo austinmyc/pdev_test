@@ -5,10 +5,294 @@ import { useState } from "react";
 import { FormulaBox } from "@/components/Math";
 
 export default function Home() {
-  const [activeSection, setActiveSection] = useState<string | null>("intro");
+  const [activeSection, setActiveSection] = useState<string | null>("teaching-plan");
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [futureAmount, setFutureAmount] = useState(1100);
 
   const tutorials = [
+    {
+      id: "teaching-plan",
+      title: "Guided Learning: Interactive Teaching Plan",
+      content: (
+        <div className="space-y-8">
+          {/* Step 1: Opening Questions */}
+          <div className="bg-gradient-to-r from-blue-900 to-purple-900 p-6 border border-blue-700">
+            <h4 className="text-2xl font-bold mb-4 text-yellow-400">🤔 Let&apos;s Start with Questions</h4>
+            <div className="space-y-4">
+              <div className="bg-gray-800 p-5">
+                <p className="text-lg font-semibold mb-3">Question 1: Simple Choice</p>
+                <p className="text-gray-300 mb-3">Would you prefer <strong className="text-green-400">HK$1,000 today</strong> or <strong className="text-blue-400">HK$1,000 in one year</strong>?</p>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="bg-green-900/30 border border-green-700 p-4">
+                    <div className="font-bold text-green-400">HK$1,000 Today</div>
+                    <p className="text-sm text-gray-400 mt-2">Most people choose this! Why? Because you can invest it and earn interest.</p>
+                  </div>
+                  <div className="bg-blue-900/30 border border-blue-700 p-4">
+                    <div className="font-bold text-blue-400">HK$1,000 in One Year</div>
+                    <p className="text-sm text-gray-400 mt-2">This seems like a bad deal—same amount, but you have to wait!</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-800 p-5">
+                <p className="text-lg font-semibold mb-3">Question 2: Harder Choice</p>
+                <p className="text-gray-300 mb-3">What about <strong className="text-green-400">HK$1,000 today</strong> or <strong className="text-blue-400">HK$2,000 in one year</strong>?</p>
+                <div className="bg-orange-900/30 border border-orange-700 p-4">
+                  <p className="text-gray-300">Now it&apos;s not so obvious! You&apos;re being offered <strong>double</strong> the money, but you have to wait. Is it worth it?</p>
+                  <p className="text-sm text-gray-400 mt-3">
+                    💡 <strong>Key Insight:</strong> This depends on the <strong>interest rate</strong> you could earn elsewhere.
+                    If you can earn 100% return in one year (doubling your money), you&apos;re indifferent.
+                    If you can only earn 50%, taking HK$2,000 later is better!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2: Find Your Indifference Rate */}
+          <div className="bg-gray-800 p-6 border border-gray-700">
+            <h4 className="text-2xl font-bold mb-4 text-blue-400">📊 Find Your Indifference Rate</h4>
+            <p className="mb-4 text-gray-300">At what interest rate would you be <strong>indifferent</strong> between HK$1,000 today and receiving a future amount in one year?</p>
+
+            <div className="bg-gray-900 p-5 space-y-4">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Future Amount (HK$)</label>
+                  <input
+                    type="number"
+                    value={futureAmount}
+                    onChange={(e) => setFutureAmount(Number(e.target.value) || 1000)}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 text-white focus:border-blue-500 focus:outline-none"
+                    min="1000"
+                    step="100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Implied Interest Rate</label>
+                  <div className="px-4 py-2 bg-green-900/30 border border-green-700 text-green-400 font-bold text-xl">
+                    {((futureAmount / 1000 - 1) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-900/30 border-l-4 border-blue-500 p-4">
+                <p className="text-sm">
+                  <strong>Formula:</strong> Rate = (Future Value / Present Value) - 1
+                </p>
+                <FormulaBox
+                  formula={`r = \\frac{FV}{PV} - 1 = \\frac{${futureAmount.toLocaleString()}}{1{,}000} - 1 = ${((futureAmount / 1000 - 1)).toFixed(2)} = ${((futureAmount / 1000 - 1) * 100).toFixed(1)}\\%`}
+                  className="mt-2"
+                />
+              </div>
+
+              <div className="text-sm text-gray-400 space-y-2">
+                <p>• If the interest rate is <strong>higher than {((futureAmount / 1000 - 1) * 100).toFixed(1)}%</strong>, take HK$1,000 today and invest it</p>
+                <p>• If the interest rate is <strong>lower than {((futureAmount / 1000 - 1) * 100).toFixed(1)}%</strong>, wait for HK${futureAmount.toLocaleString()}</p>
+                <p>• At exactly <strong>{((futureAmount / 1000 - 1) * 100).toFixed(1)}%</strong>, you&apos;re indifferent—both choices are equally good</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3: Timeline Visualization */}
+          <div className="bg-gray-800 p-6 border border-gray-700">
+            <h4 className="text-2xl font-bold mb-4 text-purple-400">📅 Timeline: HK$1,000 Growing at 5%</h4>
+            <p className="mb-4 text-gray-300">Let&apos;s see how HK$1,000 grows over time at a 5% interest rate:</p>
+
+            <div className="space-y-6">
+              {[
+                { year: 0, amount: 1000.00, calculation: "Initial investment" },
+                { year: 1, amount: 1050.00, calculation: "1,000 × (1.05)¹ = 1,050" },
+                { year: 2, amount: 1102.50, calculation: "1,000 × (1.05)² = 1,102.50" },
+                { year: 3, amount: 1157.63, calculation: "1,000 × (1.05)³ = 1,157.63" },
+                { year: 4, amount: 1215.51, calculation: "1,000 × (1.05)⁴ = 1,215.51" },
+                { year: 5, amount: 1276.28, calculation: "1,000 × (1.05)⁵ = 1,276.28" },
+              ].map((item, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <div className="w-24 text-right font-bold text-blue-400">Year {item.year}:</div>
+                  <div className="flex-1">
+                    <div className="bg-gray-700 h-12 relative overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-green-600 to-green-400 h-full flex items-center justify-end px-4 transition-all duration-500"
+                        style={{ width: `${(item.amount / 1276.28) * 100}%` }}
+                      >
+                        <span className="font-bold text-white">HK${item.amount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">{item.calculation}</div>
+                  </div>
+                  <div className="w-24 text-green-400 font-semibold">
+                    +{((item.amount / 1000 - 1) * 100).toFixed(1)}%
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-blue-900/30 border-l-4 border-blue-500 p-4 mt-6">
+              <p className="font-semibold mb-2">Key Observation:</p>
+              <p className="text-sm">In 5 years, HK$1,000 grew to HK$1,276.28—that&apos;s a <strong className="text-green-400">27.6% total gain</strong>!</p>
+            </div>
+          </div>
+
+          {/* Step 4: Which Matters More? */}
+          <div className="bg-gradient-to-r from-orange-900 to-red-900 p-6 border border-orange-700">
+            <h4 className="text-2xl font-bold mb-4 text-yellow-400">⚖️ Discussion: Which Matters More?</h4>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-gray-800 p-5">
+                <h5 className="text-xl font-bold text-blue-400 mb-3">⏰ Time</h5>
+                <p className="text-sm mb-3">Longer time = More growth (exponential effect)</p>
+                <div className="space-y-2 text-sm">
+                  <div>HK$1,000 at 5% for 5 years → <strong className="text-green-400">HK$1,276</strong></div>
+                  <div>HK$1,000 at 5% for 10 years → <strong className="text-green-400">HK$1,629</strong></div>
+                  <div>HK$1,000 at 5% for 20 years → <strong className="text-green-400">HK$2,653</strong></div>
+                </div>
+              </div>
+
+              <div className="bg-gray-800 p-5">
+                <h5 className="text-xl font-bold text-purple-400 mb-3">📈 Rate</h5>
+                <p className="text-sm mb-3">Higher rate = Faster growth</p>
+                <div className="space-y-2 text-sm">
+                  <div>HK$1,000 at 3% for 10 years → <strong className="text-green-400">HK$1,344</strong></div>
+                  <div>HK$1,000 at 5% for 10 years → <strong className="text-green-400">HK$1,629</strong></div>
+                  <div>HK$1,000 at 10% for 10 years → <strong className="text-green-400">HK$2,594</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-900/30 border-l-4 border-yellow-500 p-4 mt-6">
+              <p className="font-bold text-yellow-400 mb-2">💡 The Answer:</p>
+              <p className="text-sm">Both matter! But <strong>rate</strong> often has a bigger impact in the short term, while <strong>time</strong> becomes incredibly powerful over long periods due to compound interest.</p>
+            </div>
+          </div>
+
+          {/* Step 5: NPV Project Comparison */}
+          <div className="bg-gray-800 p-6 border border-gray-700">
+            <h4 className="text-2xl font-bold mb-4 text-green-400">💼 NPV Project Comparison</h4>
+            <p className="mb-4 text-gray-300">You have HK$100,000 to invest. Two projects are available. Let&apos;s calculate NPV at 10% discount rate:</p>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Project A */}
+              <div className="bg-blue-900/30 border-2 border-blue-700 p-5">
+                <h5 className="text-xl font-bold text-blue-400 mb-4">Project A: Quick Return</h5>
+                <div className="space-y-2 text-sm mb-4">
+                  <div className="flex justify-between">
+                    <span>Initial Investment:</span>
+                    <span className="text-red-400 font-bold">-HK$100,000</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Year 1 Cash Flow:</span>
+                    <span className="text-green-400">+HK$80,000</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Year 2 Cash Flow:</span>
+                    <span className="text-green-400">+HK$50,000</span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 p-3 space-y-1 text-xs font-mono mb-3">
+                  <div>NPV = -100,000</div>
+                  <div className="ml-4">+ 80,000 / (1.10)¹</div>
+                  <div className="ml-4">+ 50,000 / (1.10)²</div>
+                  <div>= -100,000 + 72,727 + 41,322</div>
+                  <div className="text-green-400 font-bold text-base">= HK$14,049</div>
+                </div>
+
+                <div className="bg-green-900/30 border border-green-700 p-3">
+                  <div className="text-green-400 font-bold">✓ NPV &gt; 0: Accept!</div>
+                </div>
+              </div>
+
+              {/* Project B */}
+              <div className="bg-purple-900/30 border-2 border-purple-700 p-5">
+                <h5 className="text-xl font-bold text-purple-400 mb-4">Project B: Delayed Return</h5>
+                <div className="space-y-2 text-sm mb-4">
+                  <div className="flex justify-between">
+                    <span>Initial Investment:</span>
+                    <span className="text-red-400 font-bold">-HK$100,000</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Year 1 Cash Flow:</span>
+                    <span className="text-green-400">+HK$20,000</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Year 2 Cash Flow:</span>
+                    <span className="text-green-400">+HK$120,000</span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 p-3 space-y-1 text-xs font-mono mb-3">
+                  <div>NPV = -100,000</div>
+                  <div className="ml-4">+ 20,000 / (1.10)¹</div>
+                  <div className="ml-4">+ 120,000 / (1.10)²</div>
+                  <div>= -100,000 + 18,182 + 99,174</div>
+                  <div className="text-green-400 font-bold text-base">= HK$17,356</div>
+                </div>
+
+                <div className="bg-green-900/30 border border-green-700 p-3">
+                  <div className="text-green-400 font-bold">✓ NPV &gt; 0: Accept!</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Comparison Analysis */}
+            <div className="mt-6 space-y-4">
+              <div className="bg-yellow-900/30 border-l-4 border-yellow-500 p-4">
+                <p className="font-bold text-yellow-400 mb-2">Case 1: Mutually Exclusive Projects</p>
+                <p className="text-sm">If you can only choose ONE project, choose <strong>Project B</strong> because it has the higher NPV (HK$17,356 &gt; HK$14,049).</p>
+              </div>
+
+              <div className="bg-green-900/30 border-l-4 border-green-500 p-4">
+                <p className="font-bold text-green-400 mb-2">Case 2: Non-Exclusive Projects</p>
+                <p className="text-sm">If you have enough capital and can do both, <strong>accept BOTH</strong> projects since they both have positive NPV!</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="bg-gradient-to-r from-green-900 to-blue-900 p-6 border border-green-700">
+            <h4 className="text-2xl font-bold mb-4 text-yellow-400">🎯 Key Takeaways</h4>
+            <div className="grid md:grid-cols-2 gap-4">
+              <ul className="space-y-2 text-sm">
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>Money today is worth more than money tomorrow</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>Both time and rate affect investment growth</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>Indifference rate helps compare options</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>Compound interest creates exponential growth</span>
+                </li>
+              </ul>
+              <ul className="space-y-2 text-sm">
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>NPV &gt; 0: Accept the project</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>For mutually exclusive projects: choose highest NPV</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>For non-exclusive: accept all with NPV &gt; 0</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-green-400 font-bold">✓</span>
+                  <span>Always discount future cash flows to present value</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ),
+    },
     {
       id: "intro",
       title: "Introduction: Why TVM Matters",
