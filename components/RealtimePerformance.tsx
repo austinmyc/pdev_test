@@ -1,12 +1,19 @@
 "use client";
 
-import type { Participant } from "@/lib/socketTypes";
+import type {
+  Participant,
+  QuestionStat,
+  RecentAnswer,
+} from "@/lib/socketTypes";
 
 interface RealtimePerformanceProps {
   participants: Participant[];
   totalParticipants: number;
   isConnected: boolean;
   currentUserId: string;
+  questionBreakdown?: QuestionStat | null;
+  recentAnswers: RecentAnswer[];
+  error?: string | null;
 }
 
 export default function RealtimePerformance({
@@ -14,8 +21,10 @@ export default function RealtimePerformance({
   totalParticipants,
   isConnected,
   currentUserId,
+  questionBreakdown,
+  recentAnswers,
+  error,
 }: RealtimePerformanceProps) {
-  // Calculate statistics
   const getPerformanceDistribution = () => {
     const distribution: { [key: string]: number } = {
       "0-25%": 0,
@@ -46,7 +55,7 @@ export default function RealtimePerformance({
     if (withAttempts.length === 0) return 0;
     const totalScore = withAttempts.reduce(
       (sum, p) => sum + (p.score / p.attempted) * 100,
-      0
+      0,
     );
     return (totalScore / withAttempts.length).toFixed(1);
   };
@@ -58,9 +67,13 @@ export default function RealtimePerformance({
     return scoreB - scoreA;
   });
 
+  const formatTimestamp = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <div className="bg-gray-800 border border-gray-700 p-6 mb-6">
-      {/* Connection Status */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-white">Live Session</h3>
         <div className="flex items-center gap-2">
@@ -75,7 +88,12 @@ export default function RealtimePerformance({
         </div>
       </div>
 
-      {/* Summary Stats */}
+      {error && (
+        <p className="mb-4 text-sm text-red-400">
+          Unable to refresh the leaderboard: {error}
+        </p>
+      )}
+
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-gray-900/50 p-4 border border-gray-700">
           <p className="text-sm text-gray-400 mb-1">Active Users</p>
@@ -89,11 +107,47 @@ export default function RealtimePerformance({
         </div>
         <div className="bg-gray-900/50 p-4 border border-gray-700">
           <p className="text-sm text-gray-400 mb-1">Avg Score</p>
-          <p className="text-3xl font-bold text-green-400">{getAverageScore()}%</p>
+          <p className="text-3xl font-bold text-green-400">
+            {getAverageScore()}%
+          </p>
         </div>
       </div>
 
-      {/* Performance Distribution */}
+      {questionBreakdown && questionBreakdown.choices.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold text-gray-300">
+              Question {questionBreakdown.questionId} Responses
+            </h4>
+            <span className="text-xs text-gray-400">
+              {questionBreakdown.totalResponses} responses
+            </span>
+          </div>
+          <div className="space-y-3">
+            {questionBreakdown.choices.map((choice) => {
+              const percentage =
+                questionBreakdown.totalResponses > 0
+                  ? (choice.count / questionBreakdown.totalResponses) * 100
+                  : 0;
+              return (
+                <div key={choice.optionId}>
+                  <div className="flex justify-between text-xs text-gray-400 mb-1">
+                    <span>{choice.label}</span>
+                    <span>{choice.count} votes</span>
+                  </div>
+                  <div className="bg-gray-700 h-3 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-blue-500 h-full transition-all duration-500"
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <h4 className="text-sm font-semibold text-gray-300 mb-3">
           Score Distribution
@@ -120,7 +174,6 @@ export default function RealtimePerformance({
         </div>
       </div>
 
-      {/* Leaderboard */}
       <div>
         <h4 className="text-sm font-semibold text-gray-300 mb-3">
           Live Leaderboard
@@ -147,7 +200,6 @@ export default function RealtimePerformance({
                       : "bg-gray-900/30"
                   }`}
                 >
-                  {/* Rank */}
                   <div className="w-8 h-8 flex items-center justify-center font-bold text-lg">
                     {index === 0 && "🥇"}
                     {index === 1 && "🥈"}
@@ -156,8 +208,6 @@ export default function RealtimePerformance({
                       <span className="text-gray-400">{index + 1}</span>
                     )}
                   </div>
-
-                  {/* User Info */}
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-white">
                       {participant.name}
@@ -166,11 +216,15 @@ export default function RealtimePerformance({
                       )}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {participant.attempted} attempted • {participant.progress.toFixed(0)}% complete
+                      {participant.attempted} attempted •{" "}
+                      {participant.progress.toFixed(0)}% complete
                     </p>
+                    {participant.lastAnswerLabel && (
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        Last answer: {participant.lastAnswerLabel}
+                      </p>
+                    )}
                   </div>
-
-                  {/* Score */}
                   <div className="text-right">
                     <p className="text-xl font-bold text-green-400">
                       {scorePercent}%
@@ -182,6 +236,52 @@ export default function RealtimePerformance({
                 </div>
               );
             })
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h4 className="text-sm font-semibold text-gray-300 mb-3">
+          Recent Answers
+        </h4>
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {recentAnswers.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-4">
+              Waiting for responses...
+            </p>
+          ) : (
+            recentAnswers.map((answer, index) => (
+              <div
+                key={`${answer.userId}-${answer.timestamp}-${index}`}
+                className="flex items-center justify-between bg-gray-900/40 p-3 border border-gray-700/60"
+              >
+                <div className="pr-4">
+                  <p className="text-sm text-white font-semibold">
+                    {answer.userName}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {answer.questionText}
+                  </p>
+                  <p className="text-xs text-blue-300 mt-1">
+                    Answer: {answer.answerLabel}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span
+                    className={`inline-flex items-center text-xs px-2 py-1 rounded-full ${
+                      answer.isCorrect
+                        ? "bg-green-900/40 text-green-400"
+                        : "bg-red-900/40 text-red-400"
+                    }`}
+                  >
+                    {answer.isCorrect ? "Correct" : "Incorrect"}
+                  </span>
+                  <p className="text-[10px] text-gray-500 mt-2">
+                    {formatTimestamp(answer.timestamp)}
+                  </p>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>

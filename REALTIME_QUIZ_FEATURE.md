@@ -1,52 +1,56 @@
 # Real-Time Collaborative Quiz Feature
 
 ## Overview
-The quiz application now supports real-time collaborative features similar to Mentimeter, allowing users to see other participants' performance in real-time during quiz sessions.
+The quiz application now supports real-time collaborative features similar to Mentimeter, powered by Redis instead of WebSockets. Sessions stream their progress into Redis via lightweight API calls, which enables serverless-friendly deployments while still giving every participant an up-to-date leaderboard and answer breakdown.
 
 ## Features
 
 ### 1. Session-Based Collaboration
-- Each quiz session establishes a WebSocket connection to the server
-- Users join a shared session and can see other participants in real-time
-- Automatic session management with unique session IDs
+- Each quiz submission is recorded through a serverless API call
+- Redis stores per-session participant stats, answer selections, and recent activity
+- Automatic session management with unique session IDs and short TTLs to keep Redis clean
 
 ### 2. Real-Time Performance Tracking
 - **Live Leaderboard**: See how you rank against other participants
 - **Score Distribution**: View how many users are in each performance bracket (0-25%, 26-50%, 51-75%, 76-100%)
+- **Question Breakdown**: Mentimeter-style bars showing how many people picked each option
+- **Recent Answers Feed**: Scrollable list showing who picked what and whether it was correct
 - **Average Statistics**: Track average progress and scores across all participants
 - **Active Users Count**: See how many people are currently taking the quiz
 
 ### 3. User Experience
-- **Welcome Modal**: Users enter their name before joining a session
-- **Live Updates**: All statistics update in real-time as users answer questions
-- **Connection Status**: Visual indicator showing WebSocket connection status
+- **Display Name Card**: Users can edit their leaderboard name inline on the Practice page
+- **Live Updates**: Client polls Redis-backed API every few seconds (no persistent sockets)
+- **Connection Status**: Visual indicator mirrors the polling status
 - **Personal Highlighting**: Your own entry is highlighted in the leaderboard
 
 ## Technical Implementation
 
 ### Architecture
-- **Backend**: Serverless Edge WebSocket handler (`app/api/realtime/route.ts`)
-- **Frontend**: React hooks using the native `WebSocket` API
-- **Real-time Events**:
-  - `join-session`: User joins a quiz session
-  - `update-progress`: User submits an answer
-  - `session-update`: Broadcast to all participants with updated stats
-  - `leave-session`: User exits the session
+- **Backend**: Serverless API route (`app/api/live/route.ts`) that reads/writes Redis
+- **Data store**: Managed Redis (hosted Redislabs/Upstash/etc.). All session data lives in Redis hashes/lists with 1-hour TTLs.
+- **Frontend**: `useLeaderboard` hook polls `/api/live` and feeds the enhanced `RealtimePerformance` component
+- **Data flow**:
+  1. When a participant submits an answer, the Practice page posts their stats to `/api/live`
+  2. The API stores participant summaries, question-level counts, and a recent answer feed in Redis
+  3. Every client polls `/api/live?sessionId=...` to refresh the leaderboard and Mentimeter-style charts
 
 ### Files Added/Modified
 
 #### New Files
-- `app/api/realtime/route.ts` - Edge runtime WebSocket handler
-- `lib/socketTypes.ts` - TypeScript types for Socket.io events
-- `hooks/useQuizSocket.ts` - React hook for WebSocket management
-- `components/RealtimePerformance.tsx` - Real-time dashboard component
+- `app/api/live/route.ts` - REST API for recording answers and fetching leaderboard data
+- `lib/redisClient.ts` - Shared Redis singleton for serverless environments
+- `hooks/useLeaderboard.ts` - Polling hook that replaces the old WebSocket hook
+- `components/RealtimePerformance.tsx` - Updated to show leaderboard, question breakdown, and recent answers
 
 #### Modified Files
-- `app/practice/page.tsx` - Integrated WebSocket functionality
-- `package.json` - Uses the default Next.js dev/start scripts
+- `app/practice/page.tsx` - Integrated Redis-powered live updates, name controls, and the updated dashboard
+- `lib/socketTypes.ts` - Replaced socket event types with Redis-friendly payloads
+- `package.json`/`package-lock.json` - Added the official `redis` client dependency
+- `REALTIME_QUIZ_FEATURE.md` - Documented the new architecture
 
 ### Dependencies Added
-- None — uses the native WebSocket API
+- `redis` – Official Node.js client used by the API route
 
 ## Running the Application
 
@@ -64,22 +68,32 @@ npm start
 ## Usage
 
 1. Navigate to the Practice Quiz page
-2. Enter your name in the welcome modal
-3. Click "Start Quiz Session"
-4. Answer quiz questions as normal
-5. Watch the real-time leaderboard update as you and others progress
+2. Set your display name in the "Display Name" card (optional, defaults to "Guest Analyst")
+3. Start answering questions
+4. The page will automatically push your progress to Redis and poll for everyone else's updates
 
 ## Data Tracked
 - **Score**: Number of correct answers / total attempts
 - **Progress**: Percentage of quiz completed
 - **Attempted**: Number of questions attempted
-- **Participants**: List of all active users in the session
+- **Participants**: Live participant list pulled from Redis hashes
+- **Question stats**: Per-option counts for multiple-choice problems
+- **Recent answers**: Rolling feed capped at the latest 50 submissions
 
 ## Privacy & Data
-- All session data is stored in-memory on the server
-- No personal data is permanently stored
-- Sessions are automatically cleaned up when all participants leave
-- User IDs are randomly generated and stored locally
+- All session data is stored in Redis with a 1-hour TTL per session
+- No personal data is permanently stored; user names are editable and optional
+- User IDs are generated locally and persisted in `localStorage`
+- Redis keys are namespaced per session to avoid collisions
+
+## Environment Variables
+
+Provide either a single `REDIS_URL` (`redis://user:pass@host:port`) or the host-based configuration. Supported keys:
+
+- `REDIS_URL` *(preferred)*
+- `REDIS_HOST`, `REDIS_PORT`
+- `REDIS_USERNAME`, `REDIS_PASSWORD`
+- `REDIS_USE_TLS` (set to `"true"` if your provider requires TLS)
 
 ## Future Enhancements
 - Persistent sessions with database storage

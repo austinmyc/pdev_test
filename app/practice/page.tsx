@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   calculateFutureValue,
@@ -11,6 +11,9 @@ import {
   calculatePresentValueAnnuity,
 } from "@/lib/tvmCalculations";
 import { formatCurrency } from "@/lib/formatters";
+import RealtimePerformance from "@/components/RealtimePerformance";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
+import type { RecordAnswerPayload } from "@/lib/socketTypes";
 
 interface Problem {
   id: number;
@@ -255,6 +258,10 @@ export default function PracticePage() {
     [key: number]: boolean;
   }>({});
   const [sessionId, setSessionId] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
+  const [userName, setUserName] = useState<string>("Guest Analyst");
+  const [nameDraft, setNameDraft] = useState<string>("Guest Analyst");
+  const [realtimeError, setRealtimeError] = useState<string | null>(null);
 
   const activeProblems = quizMode === "full" ? allProblems : demoProblems;
   const totalProblems = activeProblems.length;
@@ -262,6 +269,15 @@ export default function PracticePage() {
   const answeredInMode = activeProblems.filter(
     (p) => answeredProblems[p.id],
   ).length;
+
+  const {
+    participants: liveParticipants,
+    totalParticipants: liveTotalParticipants,
+    recentAnswers,
+    questionBreakdown,
+    isConnected: liveConnectionStatus,
+    error: leaderboardError,
+  } = useLeaderboard(sessionId, problem ? problem.id.toString() : undefined);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -284,6 +300,19 @@ export default function PracticePage() {
     if (!localStorage.getItem("tvmSessionStartTime")) {
       localStorage.setItem("tvmSessionStartTime", Date.now().toString());
     }
+
+    const storedUserId = localStorage.getItem("tvmUserId");
+    const generatedId =
+      storedUserId ||
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `user-${Math.random().toString(36).slice(2, 9)}`);
+    setUserId(generatedId);
+    localStorage.setItem("tvmUserId", generatedId);
+
+    const storedName = localStorage.getItem("tvmUserName") || "Guest Analyst";
+    setUserName(storedName);
+    setNameDraft(storedName);
   }, []);
 
   // Save session to localStorage whenever it changes
@@ -303,20 +332,113 @@ export default function PracticePage() {
     }
   }, [currentProblem, score, attempted, answeredProblems, sessionId, quizMode]);
 
+  const handleSaveName = () => {
+    const trimmed = nameDraft.trim() || "Guest Analyst";
+    setUserName(trimmed);
+    localStorage.setItem("tvmUserName", trimmed);
+  };
+
+  const publishLiveUpdate = useCallback(
+    async ({
+      score: nextScore,
+      attempted: nextAttempted,
+      progress: nextProgress,
+      questionId,
+      questionText,
+      answerType,
+      answerLabel,
+      answerOptionId,
+      isCorrect,
+    }: {
+      score: number;
+      attempted: number;
+      progress: number;
+      questionId: number;
+      questionText: string;
+      answerType: Problem["type"];
+      answerLabel?: string;
+      answerOptionId?: string;
+      isCorrect: boolean;
+    }) => {
+      if (!sessionId || !userId) {
+        return;
+      }
+
+      const payload: RecordAnswerPayload = {
+        sessionId,
+        userId,
+        userName,
+        score: nextScore,
+        attempted: nextAttempted,
+        progress: nextProgress,
+        questionId: questionId.toString(),
+        questionText,
+        answerType,
+        answerOptionId,
+        answerLabel,
+        isCorrect,
+      };
+
+      try {
+        const response = await fetch("/api/live", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Live update failed (${response.status})`);
+        }
+        setRealtimeError(null);
+      } catch (err) {
+        console.error("[Realtime] Failed to publish answer", err);
+        setRealtimeError(
+          err instanceof Error ? err.message : "Failed to sync live leaderboard",
+        );
+      }
+    },
+    [sessionId, userId, userName],
+  );
+
   const checkAnswer = () => {
     const correct = isCorrect();
+    const alreadyAnswered = !!answeredProblems[problem.id];
+    const nextScore = correct ? score + 1 : score;
+    const nextAttempted = alreadyAnswered ? attempted : attempted + 1;
+    const nextAnsweredCount = alreadyAnswered ? answeredInMode : answeredInMode + 1;
+    const nextProgress =
+      totalProblems > 0 ? (nextAnsweredCount / totalProblems) * 100 : 0;
+    const answerLabel =
+      problem.type === "multiple-choice" ? selectedOption : userAnswer;
+    const optionIndex =
+      problem.type === "multiple-choice"
+        ? problem.options?.findIndex((option) => option === selectedOption) ?? -1
+        : -1;
+    const answerOptionId = optionIndex >= 0 ? optionIndex.toString() : undefined;
 
     if (correct) {
       setScore((prev) => prev + 1);
     }
 
-    if (!answeredProblems[problem.id]) {
+    if (!alreadyAnswered) {
       setAttempted((prev) => prev + 1);
       setAnsweredProblems((prev) => ({ ...prev, [problem.id]: true }));
     }
 
     setShowResult(true);
     setAnswerRevealed(false);
+
+    publishLiveUpdate({
+      score: nextScore,
+      attempted: nextAttempted,
+      progress: nextProgress,
+      questionId: problem.id,
+      questionText: problem.question,
+      answerType: problem.type,
+      answerLabel: answerLabel || undefined,
+      answerOptionId,
+      isCorrect: correct,
+    });
   };
 
   const nextProblem = () => {
@@ -429,90 +551,117 @@ export default function PracticePage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
-          <div className="space-y-8">
-            {/* Session Info & Score Card */}
-            <div className="bg-gray-800 border border-gray-700 p-6">
-              <div className="grid md:grid-cols-3 gap-6">
-                <div>
-                  <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
-                  <p className="text-2xl font-bold text-blue-400">
-                    {Math.min(currentProblem + 1, totalProblems)} /{" "}
-                    {totalProblems}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {answeredInMode} answered in this mode
-                  </p>
+            <div className="space-y-8">
+              {/* Session Info & Score Card */}
+              <div className="bg-gray-800 border border-gray-700 p-6">
+                <div className="grid md:grid-cols-4 gap-6">
+                  <div>
+                    <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
+                    <p className="text-2xl font-bold text-blue-400">
+                      {Math.min(currentProblem + 1, totalProblems)} / {totalProblems}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {answeredInMode} answered in this mode
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm text-gray-400 mb-1">Score</h3>
+                    <p className="text-2xl font-bold text-green-400">
+                      {attempted > 0 ? ((score / attempted) * 100).toFixed(0) : 0}%
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {score} correct out of {attempted} attempted
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm text-gray-400 mb-1">Session ID</h3>
+                    <p className="text-sm font-mono text-gray-300 truncate">
+                      {sessionId.substring(0, 20)}...
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Auto-saved progress</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm text-gray-400 mb-1">Display Name</h3>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={nameDraft}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-600 bg-gray-700 text-white text-sm"
+                        placeholder="Enter your name"
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
+                      >
+                        Save
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Shown on the live leaderboard
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm text-gray-400 mb-1">Score</h3>
-                  <p className="text-2xl font-bold text-green-400">
-                    {attempted > 0 ? ((score / attempted) * 100).toFixed(0) : 0}
-                    %
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {score} correct out of {attempted} attempted
-                  </p>
+
+                {/* Progress Bar */}
+                <div className="mt-4 bg-gray-700 h-2">
+                  <div
+                    className="bg-blue-500 h-2 transition-all duration-300"
+                    style={{
+                      width: `${
+                        totalProblems
+                          ? (Math.min(currentProblem + 1, totalProblems) / totalProblems) * 100
+                          : 0
+                      }%`,
+                    }}
+                  ></div>
                 </div>
-                <div>
-                  <h3 className="text-sm text-gray-400 mb-1">Session ID</h3>
-                  <p className="text-sm font-mono text-gray-300 truncate">
-                    {sessionId.substring(0, 20)}...
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Auto-saved progress
+
+                <div className="mt-6 border-t border-gray-700 pt-6">
+                  <h3 className="text-sm text-gray-400 mb-2">Quiz Mode</h3>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => handleModeChange("full")}
+                      className={`px-4 py-2 font-semibold border transition-colors ${
+                        quizMode === "full"
+                          ? "bg-blue-600 border-blue-400 text-white"
+                          : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      Full Practice (15 Qs)
+                    </button>
+                    <button
+                      onClick={() => handleModeChange("demo")}
+                      className={`px-4 py-2 font-semibold border transition-colors ${
+                        quizMode === "demo"
+                          ? "bg-purple-600 border-purple-400 text-white"
+                          : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                      }`}
+                    >
+                      5-Question Demo
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    {quizMode === "demo"
+                      ? "Quick classroom-friendly set: 3 conceptual warm-ups followed by 2 calculation drills."
+                      : "Use the full bank when you want deeper practice across every TVM concept."}
                   </p>
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="mt-4 bg-gray-700 h-2">
-                <div
-                  className="bg-blue-500 h-2 transition-all duration-300"
-                  style={{
-                    width: `${
-                      totalProblems
-                        ? (Math.min(currentProblem + 1, totalProblems) /
-                            totalProblems) *
-                          100
-                        : 0
-                    }%`,
-                  }}
-                ></div>
-              </div>
+              {sessionId && (
+                <RealtimePerformance
+                  participants={liveParticipants}
+                  totalParticipants={liveTotalParticipants}
+                  isConnected={liveConnectionStatus}
+                  currentUserId={userId}
+                  questionBreakdown={questionBreakdown}
+                  recentAnswers={recentAnswers}
+                  error={realtimeError ?? leaderboardError}
+                />
+              )}
 
-              <div className="mt-6 border-t border-gray-700 pt-6">
-                <h3 className="text-sm text-gray-400 mb-2">Quiz Mode</h3>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => handleModeChange("full")}
-                    className={`px-4 py-2 font-semibold border transition-colors ${
-                      quizMode === "full"
-                        ? "bg-blue-600 border-blue-400 text-white"
-                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    Full Practice (15 Qs)
-                  </button>
-                  <button
-                    onClick={() => handleModeChange("demo")}
-                    className={`px-4 py-2 font-semibold border transition-colors ${
-                      quizMode === "demo"
-                        ? "bg-purple-600 border-purple-400 text-white"
-                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    5-Question Demo
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-3">
-                  {quizMode === "demo"
-                    ? "Quick classroom-friendly set: 3 conceptual warm-ups followed by 2 calculation drills."
-                    : "Use the full bank when you want deeper practice across every TVM concept."}
-                </p>
-              </div>
-            </div>
-
-            {/* Problem Card */}
+              {/* Problem Card */}
             <div className="bg-gray-800 border border-gray-700 p-8">
               <div className="mb-6">
                 <div className="flex items-center gap-3 mb-4">
@@ -627,9 +776,9 @@ export default function PracticePage() {
                             ? "Answer revealed below."
                             : "Click Reveal Answer when you're ready to discuss it."}
                         </p>
-                      </div>
-                    </div>
                   </div>
+                  </div>
+              </div>
 
                   <button
                     onClick={() => setAnswerRevealed(!answerRevealed)}
