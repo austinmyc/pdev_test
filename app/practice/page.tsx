@@ -10,9 +10,7 @@ import {
   calculateFutureValueAnnuity,
   calculatePresentValueAnnuity,
 } from "@/lib/tvmCalculations";
-import { formatCurrency, formatPercentage } from "@/lib/formatters";
-import { useQuizSocket } from "@/hooks/useQuizSocket";
-import RealtimePerformance from "@/components/RealtimePerformance";
+import { formatCurrency } from "@/lib/formatters";
 
 interface Problem {
   id: number;
@@ -253,24 +251,17 @@ export default function PracticePage() {
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [score, setScore] = useState(0);
   const [attempted, setAttempted] = useState(0);
-  const [answeredProblems, setAnsweredProblems] = useState<{ [key: number]: boolean }>({});
+  const [answeredProblems, setAnsweredProblems] = useState<{
+    [key: number]: boolean;
+  }>({});
   const [sessionId, setSessionId] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
-  const [userName, setUserName] = useState<string>("");
-  const [sessionStarted, setSessionStarted] = useState(false);
 
   const activeProblems = quizMode === "full" ? allProblems : demoProblems;
   const totalProblems = activeProblems.length;
   const problem = activeProblems[currentProblem];
-  const answeredInMode = activeProblems.filter((p) => answeredProblems[p.id]).length;
-
-  // Initialize websocket connection (only when session is started)
-  const { isConnected, participants, totalParticipants, updateProgress } =
-    useQuizSocket(
-      sessionStarted ? sessionId : "",
-      sessionStarted ? userId : "",
-      sessionStarted ? userName : ""
-    );
+  const answeredInMode = activeProblems.filter(
+    (p) => answeredProblems[p.id],
+  ).length;
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -284,16 +275,7 @@ export default function PracticePage() {
       setQuizMode(data.quizMode ?? "full");
     }
 
-    // Generate or load user ID
-    let existingUserId = localStorage.getItem("tvmUserId");
-    if (!existingUserId) {
-      existingUserId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem("tvmUserId", existingUserId);
-    }
-    setUserId(existingUserId);
-
-    // Use a global shared session ID for all users to see each other
-    // You can change this to create different quiz rooms if needed
+    // Use a consistent session identifier for local persistence
     const globalSessionId = "global-practice-session";
     setSessionId(globalSessionId);
     localStorage.setItem("tvmSessionId", globalSessionId);
@@ -312,36 +294,25 @@ export default function PracticePage() {
         score,
         attempted,
         answeredProblems,
-        sessionStartTime: parseInt(localStorage.getItem("tvmSessionStartTime") || Date.now().toString()),
+        sessionStartTime: parseInt(
+          localStorage.getItem("tvmSessionStartTime") || Date.now().toString(),
+        ),
         quizMode,
       };
       localStorage.setItem("tvmQuizSession", JSON.stringify(sessionData));
     }
   }, [currentProblem, score, attempted, answeredProblems, sessionId, quizMode]);
 
-  // Update progress via websocket when score changes
-  useEffect(() => {
-    if (sessionStarted && isConnected) {
-      const normalizedStep = Math.min(currentProblem + 1, totalProblems);
-      const progress = totalProblems ? (normalizedStep / totalProblems) * 100 : 0;
-      updateProgress(score, attempted, progress);
-    }
-  }, [score, attempted, currentProblem, sessionStarted, isConnected, updateProgress, totalProblems]);
-
   const checkAnswer = () => {
-    const answer =
-      problem.type === "calculation"
-        ? parseFloat(userAnswer).toFixed(2)
-        : selectedOption;
-    const correct = parseFloat(answer).toFixed(2) === parseFloat(problem.correctAnswer).toFixed(2) || answer === problem.correctAnswer;
+    const correct = isCorrect();
 
     if (correct) {
-      setScore(score + 1);
+      setScore((prev) => prev + 1);
     }
 
     if (!answeredProblems[problem.id]) {
-      setAttempted(attempted + 1);
-      setAnsweredProblems({ ...answeredProblems, [problem.id]: true });
+      setAttempted((prev) => prev + 1);
+      setAnsweredProblems((prev) => ({ ...prev, [problem.id]: true }));
     }
 
     setShowResult(true);
@@ -410,26 +381,27 @@ export default function PracticePage() {
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case "easy": return "text-green-400";
-      case "medium": return "text-yellow-400";
-      case "hard": return "text-red-400";
-      default: return "text-gray-400";
+      case "easy":
+        return "text-green-400";
+      case "medium":
+        return "text-yellow-400";
+      case "hard":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
     }
   };
 
   const getDifficultyBg = (difficulty: string) => {
     switch (difficulty) {
-      case "easy": return "bg-green-900/30 border-green-700";
-      case "medium": return "bg-yellow-900/30 border-yellow-700";
-      case "hard": return "bg-red-900/30 border-red-700";
-      default: return "bg-gray-900/30 border-gray-700";
-    }
-  };
-
-  // Handle session start
-  const handleStartSession = () => {
-    if (userName.trim()) {
-      setSessionStarted(true);
+      case "easy":
+        return "bg-green-900/30 border-green-700";
+      case "medium":
+        return "bg-yellow-900/30 border-yellow-700";
+      case "hard":
+        return "bg-red-900/30 border-red-700";
+      default:
+        return "bg-gray-900/30 border-gray-700";
     }
   };
 
@@ -455,91 +427,53 @@ export default function PracticePage() {
         </div>
       </header>
 
-      {/* Welcome Modal - Show before session starts */}
-      {!sessionStarted && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
-          <div className="bg-gray-800 border border-gray-700 p-8 max-w-md w-full">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Welcome to Live Quiz!
-            </h2>
-            <p className="text-gray-400 mb-6">
-              Join the collaborative quiz session and see how you compare with other participants in real-time!
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") handleStartSession();
-                  }}
-                  placeholder="Enter your name..."
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 text-white focus:border-blue-500 focus:outline-none"
-                  autoFocus
-                />
-              </div>
-              <button
-                onClick={handleStartSession}
-                disabled={!userName.trim()}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 px-6 hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Start Quiz Session
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-4 text-center">
-              Session ID: {sessionId.substring(0, 15)}...
-            </p>
-          </div>
-        </div>
-      )}
-
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Quiz Section - Left/Main Column */}
-            <div className="lg:col-span-2 space-y-6">
-          {/* Session Info & Score Card */}
-          <div className="bg-gray-800 border border-gray-700 p-6 mb-6">
-            <div className="grid md:grid-cols-3 gap-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="space-y-8">
+            {/* Session Info & Score Card */}
+            <div className="bg-gray-800 border border-gray-700 p-6">
+              <div className="grid md:grid-cols-3 gap-6">
                 <div>
                   <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
                   <p className="text-2xl font-bold text-blue-400">
-                    {Math.min(currentProblem + 1, totalProblems)} / {totalProblems}
+                    {Math.min(currentProblem + 1, totalProblems)} /{" "}
+                    {totalProblems}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     {answeredInMode} answered in this mode
                   </p>
                 </div>
-              <div>
-                <h3 className="text-sm text-gray-400 mb-1">Score</h3>
-                <p className="text-2xl font-bold text-green-400">
-                  {attempted > 0 ? ((score / attempted) * 100).toFixed(0) : 0}%
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {score} correct out of {attempted} attempted
-                </p>
+                <div>
+                  <h3 className="text-sm text-gray-400 mb-1">Score</h3>
+                  <p className="text-2xl font-bold text-green-400">
+                    {attempted > 0 ? ((score / attempted) * 100).toFixed(0) : 0}
+                    %
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {score} correct out of {attempted} attempted
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm text-gray-400 mb-1">Session ID</h3>
+                  <p className="text-sm font-mono text-gray-300 truncate">
+                    {sessionId.substring(0, 20)}...
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-saved progress
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm text-gray-400 mb-1">Session ID</h3>
-                <p className="text-sm font-mono text-gray-300 truncate">
-                  {sessionId.substring(0, 20)}...
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Auto-saved progress</p>
-              </div>
-            </div>
 
-            {/* Progress Bar */}
+              {/* Progress Bar */}
               <div className="mt-4 bg-gray-700 h-2">
                 <div
                   className="bg-blue-500 h-2 transition-all duration-300"
                   style={{
                     width: `${
                       totalProblems
-                        ? (Math.min(currentProblem + 1, totalProblems) / totalProblems) * 100
+                        ? (Math.min(currentProblem + 1, totalProblems) /
+                            totalProblems) *
+                          100
                         : 0
                     }%`,
                   }}
@@ -576,261 +510,270 @@ export default function PracticePage() {
                     : "Use the full bank when you want deeper practice across every TVM concept."}
                 </p>
               </div>
-          </div>
-
-          {/* Problem Card */}
-          <div className="bg-gray-800 border border-gray-700 p-8">
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className={`px-3 py-1 border text-sm font-semibold ${getDifficultyBg(problem.difficulty)}`}>
-                  {problem.difficulty.toUpperCase()}
-                </span>
-                <span className="px-3 py-1 bg-gray-700 text-gray-300 text-sm font-semibold">
-                  {problem.type === "calculation"
-                    ? "CALCULATION"
-                    : "MULTIPLE CHOICE"}
-                </span>
-                {answeredProblems[problem.id] && (
-                  <span className="px-3 py-1 bg-blue-900/30 border border-blue-700 text-blue-400 text-sm font-semibold">
-                    ANSWERED
-                  </span>
-                )}
-              </div>
-              <h3 className="text-2xl font-bold">{problem.question}</h3>
             </div>
 
-            {!showResult ? (
-              <>
-                {problem.type === "calculation" ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-2 text-gray-300">
-                        Your Answer (round to 2 decimal places)
-                      </label>
-                      <input
-                        type="number"
-                        value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 text-lg"
-                        placeholder="Enter your answer"
-                        step="0.01"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {problem.options?.map((option, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedOption(option)}
-                        className={`w-full text-left p-4 border-2 transition-all ${
-                          selectedOption === option
-                            ? "border-blue-500 bg-blue-900/20"
-                            : "border-gray-600 hover:border-blue-700 bg-gray-700/50"
-                        }`}
-                      >
-                        <span className="font-semibold mr-3 text-gray-400">
-                          {String.fromCharCode(65 + index)}.
-                        </span>
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-6 flex gap-4">
-                  <button
-                    onClick={checkAnswer}
-                    disabled={
-                      (problem.type === "calculation" && !userAnswer) ||
-                      (problem.type === "multiple-choice" && !selectedOption)
-                    }
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 px-6 transition-colors"
+            {/* Problem Card */}
+            <div className="bg-gray-800 border border-gray-700 p-8">
+              <div className="mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span
+                    className={`px-3 py-1 border text-sm font-semibold ${getDifficultyBg(problem.difficulty)}`}
                   >
-                    Check Answer
-                  </button>
-                  {problem.hint && (
-                    <button
-                      onClick={() => setShowHint(!showHint)}
-                      className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-bold transition-colors"
-                    >
-                      💡 {showHint ? "Hide" : "Show"} Hint
-                    </button>
+                    {problem.difficulty.toUpperCase()}
+                  </span>
+                  <span className="px-3 py-1 bg-gray-700 text-gray-300 text-sm font-semibold">
+                    {problem.type === "calculation"
+                      ? "CALCULATION"
+                      : "MULTIPLE CHOICE"}
+                  </span>
+                  {answeredProblems[problem.id] && (
+                    <span className="px-3 py-1 bg-blue-900/30 border border-blue-700 text-blue-400 text-sm font-semibold">
+                      ANSWERED
+                    </span>
                   )}
                 </div>
+                <h3 className="text-2xl font-bold">{problem.question}</h3>
+              </div>
 
-                {showHint && problem.hint && (
-                  <div className="mt-4 bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
-                    <p className="font-semibold text-yellow-400">
-                      Hint:
-                    </p>
-                    <p className="text-sm mt-1 text-yellow-300">
-                      {problem.hint}
-                    </p>
+              {!showResult ? (
+                <>
+                  {problem.type === "calculation" ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold mb-2 text-gray-300">
+                          Your Answer (round to 2 decimal places)
+                        </label>
+                        <input
+                          type="number"
+                          value={userAnswer}
+                          onChange={(e) => setUserAnswer(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 text-lg"
+                          placeholder="Enter your answer"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {problem.options?.map((option, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedOption(option)}
+                          className={`w-full text-left p-4 border-2 transition-all ${
+                            selectedOption === option
+                              ? "border-blue-500 bg-blue-900/20"
+                              : "border-gray-600 hover:border-blue-700 bg-gray-700/50"
+                          }`}
+                        >
+                          <span className="font-semibold mr-3 text-gray-400">
+                            {String.fromCharCode(65 + index)}.
+                          </span>
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex gap-4">
+                    <button
+                      onClick={checkAnswer}
+                      disabled={
+                        (problem.type === "calculation" && !userAnswer) ||
+                        (problem.type === "multiple-choice" && !selectedOption)
+                      }
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold py-3 px-6 transition-colors"
+                    >
+                      Check Answer
+                    </button>
+                    {problem.hint && (
+                      <button
+                        onClick={() => setShowHint(!showHint)}
+                        className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-bold transition-colors"
+                      >
+                        💡 {showHint ? "Hide" : "Show"} Hint
+                      </button>
+                    )}
                   </div>
-                )}
-              </>
-            ) : (
-            <div className="space-y-6">
-              {/* Result */}
-              <div
-                className={`p-6 border-2 ${
-                  isCorrect()
-                    ? "bg-green-900/20 border-green-500"
-                    : "bg-red-900/20 border-red-500"
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-3xl">
-                    {isCorrect() ? "✓" : "✗"}
-                  </span>
-                  <div>
-                    <h4 className="text-xl font-bold">
-                      {isCorrect() ? "Correct!" : "Incorrect"}
-                    </h4>
-                    <p className="text-sm text-gray-300">
-                      {answerRevealed
-                        ? "Answer revealed below."
-                        : "Click Reveal Answer when you're ready to discuss it."}
-                    </p>
+
+                  {showHint && problem.hint && (
+                    <div className="mt-4 bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+                      <p className="font-semibold text-yellow-400">Hint:</p>
+                      <p className="text-sm mt-1 text-yellow-300">
+                        {problem.hint}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-6">
+                  {/* Result */}
+                  <div
+                    className={`p-6 border-2 ${
+                      isCorrect()
+                        ? "bg-green-900/20 border-green-500"
+                        : "bg-red-900/20 border-red-500"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-3xl">
+                        {isCorrect() ? "✓" : "✗"}
+                      </span>
+                      <div>
+                        <h4 className="text-xl font-bold">
+                          {isCorrect() ? "Correct!" : "Incorrect"}
+                        </h4>
+                        <p className="text-sm text-gray-300">
+                          {answerRevealed
+                            ? "Answer revealed below."
+                            : "Click Reveal Answer when you're ready to discuss it."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setAnswerRevealed(!answerRevealed)}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 transition-colors"
+                  >
+                    {answerRevealed
+                      ? "Hide Answer & Explanation"
+                      : "Reveal Answer & Explanation"}
+                  </button>
+
+                  {answerRevealed && (
+                    <>
+                      <div className="p-6 border-2 border-blue-500 bg-blue-900/20">
+                        <p className="text-sm">
+                          {problem.type === "calculation" && (
+                            <>
+                              <strong>Correct answer:</strong>{" "}
+                              {problem.calculateAnswer
+                                ? formatCurrency(problem.calculateAnswer())
+                                : problem.correctAnswer}
+                            </>
+                          )}
+                          {problem.type === "multiple-choice" && (
+                            <>
+                              <strong>Correct answer:</strong>{" "}
+                              {problem.correctAnswer}
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="bg-blue-900/20 border-l-4 border-blue-500 p-6">
+                        <h4 className="font-semibold text-lg mb-2 text-blue-400">
+                          Explanation:
+                        </h4>
+                        <p className="text-sm leading-relaxed">
+                          {problem.explanation}
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Navigation */}
+                  <div className="flex gap-4">
+                    {currentProblem > 0 && (
+                      <button
+                        onClick={previousProblem}
+                        className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold transition-colors"
+                      >
+                        ← Previous
+                      </button>
+                    )}
+                    <button
+                      onClick={nextProblem}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 transition-colors"
+                    >
+                      {currentProblem < totalProblems - 1
+                        ? "Next Problem →"
+                        : "Back to Start"}
+                    </button>
+                    <button
+                      onClick={resetQuiz}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors"
+                    >
+                      Reset Quiz
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <button
-                onClick={() => setAnswerRevealed(!answerRevealed)}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 transition-colors"
-              >
-                {answerRevealed ? "Hide Answer & Explanation" : "Reveal Answer & Explanation"}
-              </button>
-
-              {answerRevealed && (
-                <>
-                  <div className="p-6 border-2 border-blue-500 bg-blue-900/20">
-                    <p className="text-sm">
-                      {problem.type === "calculation" && (
-                        <>
-                          <strong>Correct answer:</strong>{" "}
-                          {problem.calculateAnswer
-                            ? formatCurrency(problem.calculateAnswer())
-                            : problem.correctAnswer}
-                        </>
-                      )}
-                      {problem.type === "multiple-choice" && (
-                        <>
-                          <strong>Correct answer:</strong> {problem.correctAnswer}
-                        </>
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="bg-blue-900/20 border-l-4 border-blue-500 p-6">
-                    <h4 className="font-semibold text-lg mb-2 text-blue-400">Explanation:</h4>
-                    <p className="text-sm leading-relaxed">{problem.explanation}</p>
-                  </div>
-                </>
               )}
-
-              {/* Navigation */}
-              <div className="flex gap-4">
-                {currentProblem > 0 && (
-                  <button
-                    onClick={previousProblem}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold transition-colors"
-                  >
-                    ← Previous
-                  </button>
-                )}
-                <button
-                  onClick={nextProblem}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 transition-colors"
-                >
-                  {currentProblem < totalProblems - 1
-                    ? "Next Problem →"
-                    : "Back to Start"}
-                </button>
-                <button
-                  onClick={resetQuiz}
-                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors"
-                >
-                  Reset Quiz
-                </button>
-              </div>
             </div>
-            )}
-          </div>
 
-          {/* Problem Navigation Grid */}
-          <div className="bg-gray-800 border border-gray-700 p-6">
-            <h3 className="text-lg font-bold mb-4">Jump to Problem</h3>
+            {/* Problem Navigation Grid */}
+            <div className="bg-gray-800 border border-gray-700 p-6">
+              <h3 className="text-lg font-bold mb-4">Jump to Problem</h3>
               <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
                 {activeProblems.map((p, index) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setCurrentProblem(index);
-                    setUserAnswer("");
-                    setSelectedOption("");
-                    setShowResult(false);
-                    setShowHint(false);
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setCurrentProblem(index);
+                      setUserAnswer("");
+                      setSelectedOption("");
+                      setShowResult(false);
+                      setShowHint(false);
                       setAnswerRevealed(false);
                     }}
-                  className={`aspect-square flex items-center justify-center font-bold transition-colors ${
-                    index === currentProblem
-                      ? "bg-blue-600 text-white"
-                      : answeredProblems[p.id]
-                      ? "bg-green-700 text-white hover:bg-green-600"
-                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                  }`}
-                  title={`Problem ${index + 1} - ${p.difficulty}`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-4 mt-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-600"></div>
-                <span className="text-gray-400">Current</span>
+                    className={`aspect-square flex items-center justify-center font-bold transition-colors ${
+                      index === currentProblem
+                        ? "bg-blue-600 text-white"
+                        : answeredProblems[p.id]
+                          ? "bg-green-700 text-white hover:bg-green-600"
+                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                    title={`Problem ${index + 1} - ${p.difficulty}`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-700"></div>
-                <span className="text-gray-400">Answered</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-700"></div>
-                <span className="text-gray-400">Not Answered</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Study Tips */}
-          <div className="bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
-            <h3 className="text-xl font-bold mb-3">Study Tips</h3>
-            <ul className="space-y-2 text-sm">
-              <li>• Always identify what you&apos;re solving for (PV, FV, PMT, r, or n)</li>
-              <li>• Make sure your time periods match (monthly payments need monthly rates)</li>
-              <li>• Draw a timeline to visualize cash flows</li>
-              <li>• Remember: money today is worth more than money tomorrow</li>
-              <li>• For NPV: if positive, accept the project; if negative, reject it</li>
-              <li>• Use a financial calculator or spreadsheet for complex problems</li>
-              <li>• Your progress is automatically saved and can be resumed anytime</li>
-            </ul>
-          </div>
-            </div>
-
-            {/* Realtime Performance - Right Column */}
-            <div className="lg:col-span-1">
-              {sessionStarted && (
-                <div className="lg:sticky lg:top-4">
-                  <RealtimePerformance
-                    participants={participants}
-                    totalParticipants={totalParticipants}
-                    isConnected={isConnected}
-                    currentUserId={userId}
-                  />
+              <div className="flex gap-4 mt-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-blue-600"></div>
+                  <span className="text-gray-400">Current</span>
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-700"></div>
+                  <span className="text-gray-400">Answered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gray-700"></div>
+                  <span className="text-gray-400">Not Answered</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Study Tips */}
+            <div className="bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
+              <h3 className="text-xl font-bold mb-3">Study Tips</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  • Always identify what you&apos;re solving for (PV, FV, PMT,
+                  r, or n)
+                </li>
+                <li>
+                  • Make sure your time periods match (monthly payments need
+                  monthly rates)
+                </li>
+                <li>• Draw a timeline to visualize cash flows</li>
+                <li>
+                  • Remember: money today is worth more than money tomorrow
+                </li>
+                <li>
+                  • For NPV: if positive, accept the project; if negative,
+                  reject it
+                </li>
+                <li>
+                  • Use a financial calculator or spreadsheet for complex
+                  problems
+                </li>
+                <li>
+                  • Your progress is automatically saved and can be resumed
+                  anytime
+                </li>
+              </ul>
             </div>
           </div>
         </div>
