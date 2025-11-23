@@ -26,7 +26,7 @@ interface Problem {
   difficulty: "easy" | "medium" | "hard";
 }
 
-const problems: Problem[] = [
+const allProblems: Problem[] = [
   // Easy Problems
   {
     id: 1,
@@ -229,20 +229,28 @@ const problems: Problem[] = [
   },
 ];
 
+const demoProblemOrder = [3, 7, 9, 1, 2];
+const demoProblems: Problem[] = demoProblemOrder
+  .map((id) => allProblems.find((problem) => problem.id === id))
+  .filter((problem): problem is Problem => Boolean(problem));
+
 interface SessionData {
   currentProblem: number;
   score: number;
   attempted: number;
   answeredProblems: { [key: number]: boolean };
   sessionStartTime: number;
+  quizMode?: "full" | "demo";
 }
 
 export default function PracticePage() {
   const [currentProblem, setCurrentProblem] = useState(0);
+  const [quizMode, setQuizMode] = useState<"full" | "demo">("full");
   const [userAnswer, setUserAnswer] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
   const [showResult, setShowResult] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [answerRevealed, setAnswerRevealed] = useState(false);
   const [score, setScore] = useState(0);
   const [attempted, setAttempted] = useState(0);
   const [answeredProblems, setAnsweredProblems] = useState<{ [key: number]: boolean }>({});
@@ -250,6 +258,11 @@ export default function PracticePage() {
   const [userId, setUserId] = useState<string>("");
   const [userName, setUserName] = useState<string>("");
   const [sessionStarted, setSessionStarted] = useState(false);
+
+  const activeProblems = quizMode === "full" ? allProblems : demoProblems;
+  const totalProblems = activeProblems.length;
+  const problem = activeProblems[currentProblem];
+  const answeredInMode = activeProblems.filter((p) => answeredProblems[p.id]).length;
 
   // Initialize websocket connection (only when session is started)
   const { isConnected, participants, totalParticipants, updateProgress } =
@@ -268,6 +281,7 @@ export default function PracticePage() {
       setScore(data.score);
       setAttempted(data.attempted);
       setAnsweredProblems(data.answeredProblems || {});
+      setQuizMode(data.quizMode ?? "full");
     }
 
     // Generate or load user ID
@@ -299,20 +313,20 @@ export default function PracticePage() {
         attempted,
         answeredProblems,
         sessionStartTime: parseInt(localStorage.getItem("tvmSessionStartTime") || Date.now().toString()),
+        quizMode,
       };
       localStorage.setItem("tvmQuizSession", JSON.stringify(sessionData));
     }
-  }, [currentProblem, score, attempted, answeredProblems, sessionId]);
+  }, [currentProblem, score, attempted, answeredProblems, sessionId, quizMode]);
 
   // Update progress via websocket when score changes
   useEffect(() => {
     if (sessionStarted && isConnected) {
-      const progress = ((currentProblem + 1) / problems.length) * 100;
+      const normalizedStep = Math.min(currentProblem + 1, totalProblems);
+      const progress = totalProblems ? (normalizedStep / totalProblems) * 100 : 0;
       updateProgress(score, attempted, progress);
     }
-  }, [score, attempted, currentProblem, sessionStarted, isConnected, updateProgress]);
-
-  const problem = problems[currentProblem];
+  }, [score, attempted, currentProblem, sessionStarted, isConnected, updateProgress, totalProblems]);
 
   const checkAnswer = () => {
     const answer =
@@ -331,14 +345,17 @@ export default function PracticePage() {
     }
 
     setShowResult(true);
+    setAnswerRevealed(false);
   };
 
   const nextProblem = () => {
-    setCurrentProblem((currentProblem + 1) % problems.length);
+    if (!totalProblems) return;
+    setCurrentProblem((currentProblem + 1) % totalProblems);
     setUserAnswer("");
     setSelectedOption("");
     setShowResult(false);
     setShowHint(false);
+    setAnswerRevealed(false);
   };
 
   const previousProblem = () => {
@@ -348,6 +365,7 @@ export default function PracticePage() {
       setSelectedOption("");
       setShowResult(false);
       setShowHint(false);
+      setAnswerRevealed(false);
     }
   };
 
@@ -357,6 +375,7 @@ export default function PracticePage() {
     setSelectedOption("");
     setShowResult(false);
     setShowHint(false);
+    setAnswerRevealed(false);
     setScore(0);
     setAttempted(0);
     setAnsweredProblems({});
@@ -367,6 +386,17 @@ export default function PracticePage() {
     setSessionId(newSessionId);
     localStorage.setItem("tvmSessionId", newSessionId);
     localStorage.setItem("tvmSessionStartTime", Date.now().toString());
+  };
+
+  const handleModeChange = (mode: "full" | "demo") => {
+    if (mode === quizMode) return;
+    setQuizMode(mode);
+    setCurrentProblem(0);
+    setUserAnswer("");
+    setSelectedOption("");
+    setShowResult(false);
+    setShowHint(false);
+    setAnswerRevealed(false);
   };
 
   const isCorrect = () => {
@@ -475,15 +505,15 @@ export default function PracticePage() {
           {/* Session Info & Score Card */}
           <div className="bg-gray-800 border border-gray-700 p-6 mb-6">
             <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
-                <p className="text-2xl font-bold text-blue-400">
-                  {currentProblem + 1} / {problems.length}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {answeredProblems && Object.keys(answeredProblems).length} answered
-                </p>
-              </div>
+                <div>
+                  <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {Math.min(currentProblem + 1, totalProblems)} / {totalProblems}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {answeredInMode} answered in this mode
+                  </p>
+                </div>
               <div>
                 <h3 className="text-sm text-gray-400 mb-1">Score</h3>
                 <p className="text-2xl font-bold text-green-400">
@@ -503,14 +533,49 @@ export default function PracticePage() {
             </div>
 
             {/* Progress Bar */}
-            <div className="mt-4 bg-gray-700 h-2">
-              <div
-                className="bg-blue-500 h-2 transition-all duration-300"
-                style={{
-                  width: `${((currentProblem + 1) / problems.length) * 100}%`,
-                }}
-              ></div>
-            </div>
+              <div className="mt-4 bg-gray-700 h-2">
+                <div
+                  className="bg-blue-500 h-2 transition-all duration-300"
+                  style={{
+                    width: `${
+                      totalProblems
+                        ? (Math.min(currentProblem + 1, totalProblems) / totalProblems) * 100
+                        : 0
+                    }%`,
+                  }}
+                ></div>
+              </div>
+
+              <div className="mt-6 border-t border-gray-700 pt-6">
+                <h3 className="text-sm text-gray-400 mb-2">Quiz Mode</h3>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => handleModeChange("full")}
+                    className={`px-4 py-2 font-semibold border transition-colors ${
+                      quizMode === "full"
+                        ? "bg-blue-600 border-blue-400 text-white"
+                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    Full Practice (15 Qs)
+                  </button>
+                  <button
+                    onClick={() => handleModeChange("demo")}
+                    className={`px-4 py-2 font-semibold border transition-colors ${
+                      quizMode === "demo"
+                        ? "bg-purple-600 border-purple-400 text-white"
+                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    5-Question Demo
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  {quizMode === "demo"
+                    ? "Quick classroom-friendly set: 3 conceptual warm-ups followed by 2 calculation drills."
+                    : "Use the full bank when you want deeper practice across every TVM concept."}
+                </p>
+              </div>
           </div>
 
           {/* Problem Card */}
@@ -606,80 +671,100 @@ export default function PracticePage() {
                 )}
               </>
             ) : (
-              <div className="space-y-6">
-                {/* Result */}
-                <div
-                  className={`p-6 border-2 ${
-                    isCorrect()
-                      ? "bg-green-900/20 border-green-500"
-                      : "bg-red-900/20 border-red-500"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-3xl">
-                      {isCorrect() ? "✓" : "✗"}
-                    </span>
+            <div className="space-y-6">
+              {/* Result */}
+              <div
+                className={`p-6 border-2 ${
+                  isCorrect()
+                    ? "bg-green-900/20 border-green-500"
+                    : "bg-red-900/20 border-red-500"
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">
+                    {isCorrect() ? "✓" : "✗"}
+                  </span>
+                  <div>
                     <h4 className="text-xl font-bold">
                       {isCorrect() ? "Correct!" : "Incorrect"}
                     </h4>
+                    <p className="text-sm text-gray-300">
+                      {answerRevealed
+                        ? "Answer revealed below."
+                        : "Click Reveal Answer when you're ready to discuss it."}
+                    </p>
                   </div>
-                  <p className="text-sm">
-                    {problem.type === "calculation" && (
-                      <>
-                        <strong>Correct answer:</strong>{" "}
-                        {problem.calculateAnswer
-                          ? formatCurrency(problem.calculateAnswer())
-                          : problem.correctAnswer}
-                      </>
-                    )}
-                    {problem.type === "multiple-choice" && (
-                      <>
-                        <strong>Correct answer:</strong> {problem.correctAnswer}
-                      </>
-                    )}
-                  </p>
-                </div>
-
-                {/* Explanation */}
-                <div className="bg-blue-900/20 border-l-4 border-blue-500 p-6">
-                  <h4 className="font-semibold text-lg mb-2 text-blue-400">Explanation:</h4>
-                  <p className="text-sm leading-relaxed">{problem.explanation}</p>
-                </div>
-
-                {/* Navigation */}
-                <div className="flex gap-4">
-                  {currentProblem > 0 && (
-                    <button
-                      onClick={previousProblem}
-                      className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold transition-colors"
-                    >
-                      ← Previous
-                    </button>
-                  )}
-                  <button
-                    onClick={nextProblem}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 transition-colors"
-                  >
-                    {currentProblem < problems.length - 1
-                      ? "Next Problem →"
-                      : "Back to Start"}
-                  </button>
-                  <button
-                    onClick={resetQuiz}
-                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors"
-                  >
-                    Reset Quiz
-                  </button>
                 </div>
               </div>
+
+              <button
+                onClick={() => setAnswerRevealed(!answerRevealed)}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 transition-colors"
+              >
+                {answerRevealed ? "Hide Answer & Explanation" : "Reveal Answer & Explanation"}
+              </button>
+
+              {answerRevealed && (
+                <>
+                  <div className="p-6 border-2 border-blue-500 bg-blue-900/20">
+                    <p className="text-sm">
+                      {problem.type === "calculation" && (
+                        <>
+                          <strong>Correct answer:</strong>{" "}
+                          {problem.calculateAnswer
+                            ? formatCurrency(problem.calculateAnswer())
+                            : problem.correctAnswer}
+                        </>
+                      )}
+                      {problem.type === "multiple-choice" && (
+                        <>
+                          <strong>Correct answer:</strong> {problem.correctAnswer}
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-900/20 border-l-4 border-blue-500 p-6">
+                    <h4 className="font-semibold text-lg mb-2 text-blue-400">Explanation:</h4>
+                    <p className="text-sm leading-relaxed">{problem.explanation}</p>
+                  </div>
+                </>
+              )}
+
+              {/* Navigation */}
+              <div className="flex gap-4">
+                {currentProblem > 0 && (
+                  <button
+                    onClick={previousProblem}
+                    className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold transition-colors"
+                  >
+                    ← Previous
+                  </button>
+                )}
+                <button
+                  onClick={nextProblem}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 transition-colors"
+                >
+                  {currentProblem < totalProblems - 1
+                    ? "Next Problem →"
+                    : "Back to Start"}
+                </button>
+                <button
+                  onClick={resetQuiz}
+                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors"
+                >
+                  Reset Quiz
+                </button>
+              </div>
+            </div>
             )}
           </div>
 
           {/* Problem Navigation Grid */}
           <div className="bg-gray-800 border border-gray-700 p-6">
             <h3 className="text-lg font-bold mb-4">Jump to Problem</h3>
-            <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
-              {problems.map((p, index) => (
+              <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
+                {activeProblems.map((p, index) => (
                 <button
                   key={p.id}
                   onClick={() => {
@@ -688,7 +773,8 @@ export default function PracticePage() {
                     setSelectedOption("");
                     setShowResult(false);
                     setShowHint(false);
-                  }}
+                      setAnswerRevealed(false);
+                    }}
                   className={`aspect-square flex items-center justify-center font-bold transition-colors ${
                     index === currentProblem
                       ? "bg-blue-600 text-white"
