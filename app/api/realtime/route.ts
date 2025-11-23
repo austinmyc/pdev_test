@@ -18,6 +18,10 @@ declare const WebSocketPair: {
   new (): WebSocketPairInstance;
 };
 
+type EdgeWebSocket = WebSocket & {
+  accept?: () => void;
+};
+
 type SessionParticipant = Participant & { socket: WebSocket };
 
 interface SessionState {
@@ -150,9 +154,9 @@ export async function GET(request: NextRequest) {
   }
 
   const { 0: client, 1: server } = new WebSocketPair();
-  const socket = server;
+  const socket = server as EdgeWebSocket;
 
-  socket.accept();
+  socket.accept?.();
 
   socket.addEventListener("message", (event) => {
     try {
