@@ -1,6 +1,6 @@
-import { createClient, RedisClientType } from "redis";
+import { createClient } from "redis";
 
-type RedisClient = RedisClientType<Record<string, never>, Record<string, never>, Record<string, never>>;
+type RedisClient = ReturnType<typeof createClient>;
 
 const globalForRedis = globalThis as typeof globalThis & {
   __redisClient?: RedisClient;
@@ -23,21 +23,57 @@ const getRedisConfig = () => {
     );
   }
 
-  const socketConfig =
-    REDIS_URL && !REDIS_HOST
-      ? undefined
-      : {
-          host: REDIS_HOST,
-          port: REDIS_PORT ? Number(REDIS_PORT) : undefined,
-          tls: REDIS_USE_TLS === "true" ? {} : undefined,
-        };
+  // If REDIS_URL is provided, use it directly
+  if (REDIS_URL && !REDIS_HOST) {
+    const config: {
+      url: string;
+      username?: string;
+      password?: string;
+    } = {
+      url: REDIS_URL,
+    };
+    
+    if (REDIS_USERNAME) config.username = REDIS_USERNAME;
+    if (REDIS_PASSWORD) config.password = REDIS_PASSWORD;
+    
+    return config;
+  }
 
-  return {
-    url: REDIS_URL,
-    username: REDIS_USERNAME,
-    password: REDIS_PASSWORD,
+  // Build socket config - conditionally include tls property
+  const socketConfigBase: {
+    host: string;
+    port?: number;
+  } = {
+    host: REDIS_HOST!,
+  };
+
+  if (REDIS_PORT) {
+    socketConfigBase.port = Number(REDIS_PORT);
+  }
+
+  // Build socket config with conditional TLS
+  // For TLS, we need to provide an object, but TypeScript is strict about the type
+  // Using a type assertion to satisfy the build-time type checking
+  const socketConfig = REDIS_USE_TLS === "true"
+    ? {
+        ...socketConfigBase,
+        tls: {} as any, // Empty object enables TLS with default settings
+      }
+    : socketConfigBase;
+
+  const config: {
+    socket: typeof socketConfig;
+    username?: string;
+    password?: string;
+  } = {
     socket: socketConfig,
   };
+  
+  if (REDIS_USERNAME) config.username = REDIS_USERNAME;
+  if (REDIS_PASSWORD) config.password = REDIS_PASSWORD;
+
+  // Type assertion to satisfy strict TypeScript checking in build environments
+  return config as any;
 };
 
 export async function getRedisClient(): Promise<RedisClient> {
