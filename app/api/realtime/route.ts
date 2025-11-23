@@ -22,6 +22,11 @@ type EdgeWebSocket = WebSocket & {
   accept?: () => void;
 };
 
+type WebSocketResponseInit = ResponseInit & {
+  status: 101;
+  webSocket: WebSocket;
+};
+
 type SessionParticipant = Participant & { socket: WebSocket };
 
 interface SessionState {
@@ -199,5 +204,10 @@ export async function GET(request: NextRequest) {
     cleanupConnection(socket);
   });
 
-  return new Response(null, { status: 101, webSocket: client });
+  const upgradeResponse = {
+    status: 101 as const,
+    webSocket: client,
+  } satisfies WebSocketResponseInit;
+
+  return new Response(null, upgradeResponse);
 }
