@@ -5,8 +5,8 @@ import type {
   ClientMessage,
   Participant,
   ServerMessage,
-  SOCKET_EVENTS,
 } from "@/lib/socketTypes";
+import { SOCKET_EVENTS } from "@/lib/socketTypes";
 
 const SOCKET_PATH = "/api/realtime";
 
@@ -54,6 +54,7 @@ export function useQuizSocket(
     };
 
     socket.addEventListener("open", () => {
+      console.log("[Realtime] WebSocket connected");
       setIsConnected(true);
       send({
         type: SOCKET_EVENTS.JOIN_SESSION,
@@ -68,7 +69,9 @@ export function useQuizSocket(
     socket.addEventListener("message", (event) => {
       try {
         const data = JSON.parse(event.data) as ServerMessage;
+        console.log("[Realtime] Received message:", data.type, data);
         if (data.type === SOCKET_EVENTS.SESSION_UPDATE) {
+          console.log("[Realtime] Updating participants:", data.payload.participants.length);
           setParticipants(data.payload.participants);
           setTotalParticipants(data.payload.totalParticipants);
         }
@@ -77,12 +80,13 @@ export function useQuizSocket(
       }
     });
 
-    socket.addEventListener("close", () => {
+    socket.addEventListener("close", (event) => {
+      console.log("[Realtime] WebSocket closed", event.code, event.reason);
       setIsConnected(false);
     });
 
-    socket.addEventListener("error", (error) => {
-      console.error("[Realtime] Socket error", error);
+    socket.addEventListener("error", (event: Event) => {
+      console.error("[Realtime] Socket error", event);
       setIsConnected(false);
     });
 
@@ -106,9 +110,14 @@ export function useQuizSocket(
     (score: number, attempted: number, progress: number) => {
       const socket = socketRef.current;
       if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.log("[Realtime] Cannot update progress - socket not ready", {
+          hasSocket: !!socket,
+          readyState: socket?.readyState,
+        });
         return;
       }
 
+      console.log("[Realtime] Sending progress update", { score, attempted, progress });
       socket.send(
         JSON.stringify({
           type: SOCKET_EVENTS.UPDATE_PROGRESS,
