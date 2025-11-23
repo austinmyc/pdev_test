@@ -277,7 +277,7 @@ export default function PracticePage() {
     questionBreakdown,
     isConnected: liveConnectionStatus,
     error: leaderboardError,
-  } = useLeaderboard(sessionId, problem ? problem.id.toString() : undefined);
+  } = useLeaderboard(sessionId, problem ? problem.id.toString() : undefined, undefined, userId);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -321,7 +321,7 @@ export default function PracticePage() {
     
     setUserId(finalUserId);
 
-    const storedName = localStorage.getItem("tvmUserName") || "Guest Analyst";
+    const storedName = localStorage.getItem("tvmUserName") || "Student";
     setUserName(storedName);
     setNameDraft(storedName);
   }, []);

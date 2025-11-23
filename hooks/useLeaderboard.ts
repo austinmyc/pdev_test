@@ -14,6 +14,7 @@ export function useLeaderboard(
   sessionId: string,
   questionId?: string,
   pollInterval = DEFAULT_POLL_INTERVAL,
+  userId?: string,
 ) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [totalParticipants, setTotalParticipants] = useState(0);
@@ -38,7 +39,13 @@ export function useLeaderboard(
     const fetchLeaderboard = async () => {
       if (!sessionId) return;
       try {
-        const response = await fetch(`/api/live?sessionId=${encodeURIComponent(sessionId)}`, {
+        const url = new URL("/api/live", window.location.origin);
+        url.searchParams.set("sessionId", sessionId);
+        if (userId) {
+          url.searchParams.set("userId", userId);
+        }
+        
+        const response = await fetch(url.toString(), {
           cache: "no-store",
         });
 
@@ -74,7 +81,7 @@ export function useLeaderboard(
       aborted = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [sessionId, questionId, pollInterval]);
+  }, [sessionId, questionId, pollInterval, userId]);
 
   return {
     participants,

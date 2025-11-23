@@ -254,7 +254,7 @@ const buildQuestionStats = (counts: Record<string, string>, meta: Record<string,
   };
 };
 
-const STALE_USER_THRESHOLD_MS = 30 * 1000; // 30 seconds
+const STALE_USER_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function DELETE(request: NextRequest) {
   let payload: LeaveSessionPayload;
@@ -307,7 +307,24 @@ export async function DELETE(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const sessionId = ensureSessionId(request.nextUrl.searchParams.get("sessionId"));
+    const userId = request.nextUrl.searchParams.get("userId"); // Optional: for heartbeat
     const client = await getRedisClient();
+
+    // If userId is provided, update their lastUpdate as a heartbeat (they're still connected)
+    if (userId) {
+      try {
+        const participantRaw = await client.hGet(participantsKey(sessionId), userId);
+        if (participantRaw) {
+          const participant = JSON.parse(participantRaw) as Participant;
+          participant.lastUpdate = Date.now();
+          await client.hSet(participantsKey(sessionId), participant.id, JSON.stringify(participant));
+          await withSessionTtl(client, [participantsKey(sessionId)]);
+        }
+      } catch (err) {
+        // Silently fail heartbeat update - not critical
+        console.error("[Realtime] Failed to update heartbeat", err);
+      }
+    }
 
     const participantsRaw = await client.hGetAll(participantsKey(sessionId));
     const now = Date.now();
@@ -321,7 +338,7 @@ export async function GET(request: NextRequest) {
       })
       .filter((participant): participant is Participant => Boolean(participant))
       .filter((participant) => {
-        // Filter out stale users (haven't updated in 30 seconds)
+        // Filter out stale users (haven't updated in 5 minutes)
         const timeSinceUpdate = now - participant.lastUpdate;
         if (timeSinceUpdate > STALE_USER_THRESHOLD_MS) {
           // Remove stale user from Redis
