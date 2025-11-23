@@ -54,3 +54,14 @@ export interface RecordAnswerPayload {
   answerLabel?: string;
   isCorrect: boolean;
 }
+
+export interface JoinSessionPayload {
+  sessionId: string;
+  userId: string;
+  userName: string;
+}
+
+export interface LeaveSessionPayload {
+  sessionId: string;
+  userId: string;
+}

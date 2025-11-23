@@ -8,7 +8,7 @@ import type {
   LeaderboardResponse,
 } from "@/lib/socketTypes";
 
-const DEFAULT_POLL_INTERVAL = 4000;
+const DEFAULT_POLL_INTERVAL = 1000;
 
 export function useLeaderboard(
   sessionId: string,

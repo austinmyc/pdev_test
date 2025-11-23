@@ -174,7 +174,7 @@ export default function RealtimePerformance({
         </div>
       </div>
 
-      <div>
+      <div className="mt-6">
         <h4 className="text-sm font-semibold text-gray-300 mb-3">
           Live Leaderboard
         </h4>
@@ -255,31 +255,18 @@ export default function RealtimePerformance({
                 key={`${answer.userId}-${answer.timestamp}-${index}`}
                 className="flex items-center justify-between bg-gray-900/40 p-3 border border-gray-700/60"
               >
-                <div className="pr-4">
-                  <p className="text-sm text-white font-semibold">
-                    {answer.userName}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {answer.questionText}
-                  </p>
-                  <p className="text-xs text-blue-300 mt-1">
-                    Answer: {answer.answerLabel}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`inline-flex items-center text-xs px-2 py-1 rounded-full ${
-                      answer.isCorrect
-                        ? "bg-green-900/40 text-green-400"
-                        : "bg-red-900/40 text-red-400"
-                    }`}
-                  >
-                    {answer.isCorrect ? "Correct" : "Incorrect"}
-                  </span>
-                  <p className="text-[10px] text-gray-500 mt-2">
-                    {formatTimestamp(answer.timestamp)}
-                  </p>
-                </div>
+                <p className="text-sm text-white font-semibold">
+                  {answer.userName}
+                </p>
+                <span
+                  className={`inline-flex items-center text-xs px-2 py-1 rounded-full ${
+                    answer.isCorrect
+                      ? "bg-green-900/40 text-green-400"
+                      : "bg-red-900/40 text-red-400"
+                  }`}
+                >
+                  {answer.isCorrect ? "✓" : "✗"}
+                </span>
               </div>
             ))
           )}

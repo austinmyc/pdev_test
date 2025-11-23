@@ -13,7 +13,7 @@ import {
 import { formatCurrency } from "@/lib/formatters";
 import RealtimePerformance from "@/components/RealtimePerformance";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
-import type { RecordAnswerPayload } from "@/lib/socketTypes";
+import type { RecordAnswerPayload, JoinSessionPayload, LeaveSessionPayload } from "@/lib/socketTypes";
 
 interface Problem {
   id: number;
@@ -292,7 +292,7 @@ export default function PracticePage() {
     }
 
     // Use a consistent session identifier for local persistence
-    const globalSessionId = "global-practice-session";
+    const globalSessionId = "live-session";
     setSessionId(globalSessionId);
     localStorage.setItem("tvmSessionId", globalSessionId);
 
@@ -301,14 +301,25 @@ export default function PracticePage() {
       localStorage.setItem("tvmSessionStartTime", Date.now().toString());
     }
 
-    const storedUserId = localStorage.getItem("tvmUserId");
-    const generatedId =
-      storedUserId ||
-      (typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `user-${Math.random().toString(36).slice(2, 9)}`);
-    setUserId(generatedId);
-    localStorage.setItem("tvmUserId", generatedId);
+    // Generate a unique userId for this browser window/tab
+    // Always use sessionStorage as the source of truth (unique per tab)
+    // This ensures each tab/window gets its own unique ID, even in incognito mode
+    let finalUserId = sessionStorage.getItem("tvmUserId");
+    
+    if (!finalUserId) {
+      // Generate a completely new unique ID with timestamp + random to ensure uniqueness
+      finalUserId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `user-${Date.now()}-${Math.random().toString(36).slice(2, 15)}`;
+      
+      // Store in sessionStorage (per-tab) - this ensures each tab is unique
+      sessionStorage.setItem("tvmUserId", finalUserId);
+      // Also store in localStorage for persistence across page reloads in the same tab
+      localStorage.setItem("tvmUserId", finalUserId);
+    }
+    
+    setUserId(finalUserId);
 
     const storedName = localStorage.getItem("tvmUserName") || "Guest Analyst";
     setUserName(storedName);
@@ -336,7 +347,91 @@ export default function PracticePage() {
     const trimmed = nameDraft.trim() || "Guest Analyst";
     setUserName(trimmed);
     localStorage.setItem("tvmUserName", trimmed);
+    // The useEffect watching userName will automatically update the session
   };
+
+  // Join session when user connects
+  const joinSession = useCallback(async () => {
+    if (!sessionId || !userId || !userName) {
+      return;
+    }
+
+    try {
+      const payload: JoinSessionPayload = {
+        sessionId,
+        userId,
+        userName,
+      };
+
+      const response = await fetch("/api/live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Join session failed (${response.status})`);
+      }
+    } catch (err) {
+      console.error("[Realtime] Failed to join session", err);
+      // Don't show error to user for join failures, just log
+    }
+  }, [sessionId, userId, userName]);
+
+  // Join session when sessionId, userId, and userName are available
+  useEffect(() => {
+    if (sessionId && userId && userName) {
+      joinSession();
+    }
+  }, [sessionId, userId, userName, joinSession]);
+
+  // Leave session when user closes browser/tab
+  const leaveSession = useCallback(async () => {
+    if (!sessionId || !userId) {
+      return;
+    }
+
+    try {
+      const payload = {
+        action: "leave",
+        sessionId,
+        userId,
+      };
+
+      // Use sendBeacon for more reliable delivery during page unload (POST only)
+      if (navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+        navigator.sendBeacon("/api/live", blob);
+      } else {
+        // Fallback to fetch with keepalive
+        await fetch("/api/live", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        });
+      }
+    } catch (err) {
+      console.error("[Realtime] Failed to leave session", err);
+    }
+  }, [sessionId, userId]);
+
+  // Clean up on page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      leaveSession();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handleBeforeUnload);
+      // Also try to leave on component unmount
+      leaveSession();
+    };
+  }, [leaveSession]);
 
   const publishLiveUpdate = useCallback(
     async ({
@@ -550,11 +645,13 @@ export default function PracticePage() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-5xl mx-auto">
-            <div className="space-y-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Left Column - Quiz Content */}
+            <div className="lg:col-span-2 space-y-6 min-w-0">
               {/* Session Info & Score Card */}
-              <div className="bg-gray-800 border border-gray-700 p-6">
-                <div className="grid md:grid-cols-4 gap-6">
+              <div className="bg-gray-800 border border-gray-700 p-6 overflow-hidden">
+                <div className="grid md:grid-cols-4 gap-6 min-w-0">
                   <div>
                     <h3 className="text-sm text-gray-400 mb-1">Progress</h3>
                     <p className="text-2xl font-bold text-blue-400">
@@ -573,33 +670,31 @@ export default function PracticePage() {
                       {score} correct out of {attempted} attempted
                     </p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-sm text-gray-400 mb-1">Session ID</h3>
                     <p className="text-sm font-mono text-gray-300 truncate">
                       {sessionId.substring(0, 20)}...
                     </p>
                     <p className="text-xs text-gray-500 mt-1">Auto-saved progress</p>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-sm text-gray-400 mb-1">Display Name</h3>
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 min-w-0">
                       <input
                         type="text"
                         value={nameDraft}
                         onChange={(e) => setNameDraft(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-600 bg-gray-700 text-white text-sm"
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-600 bg-gray-700 text-white text-sm"
                         placeholder="Enter your name"
                       />
                       <button
                         onClick={handleSaveName}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold whitespace-nowrap flex-shrink-0"
                       >
                         Save
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Shown on the live leaderboard
-                    </p>
+                    
                   </div>
                 </div>
 
@@ -628,7 +723,7 @@ export default function PracticePage() {
                           : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
                       }`}
                     >
-                      Full Practice (15 Qs)
+                      Full Practice
                     </button>
                     <button
                       onClick={() => handleModeChange("demo")}
@@ -638,31 +733,17 @@ export default function PracticePage() {
                           : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
                       }`}
                     >
-                      5-Question Demo
+                      Short Quiz
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-3">
-                    {quizMode === "demo"
-                      ? "Quick classroom-friendly set: 3 conceptual warm-ups followed by 2 calculation drills."
-                      : "Use the full bank when you want deeper practice across every TVM concept."}
+                    
                   </p>
                 </div>
               </div>
 
-              {sessionId && (
-                <RealtimePerformance
-                  participants={liveParticipants}
-                  totalParticipants={liveTotalParticipants}
-                  isConnected={liveConnectionStatus}
-                  currentUserId={userId}
-                  questionBreakdown={questionBreakdown}
-                  recentAnswers={recentAnswers}
-                  error={realtimeError ?? leaderboardError}
-                />
-              )}
-
               {/* Problem Card */}
-            <div className="bg-gray-800 border border-gray-700 p-8">
+              <div className="bg-gray-800 border border-gray-700 p-8 overflow-hidden">
               <div className="mb-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span
@@ -681,7 +762,7 @@ export default function PracticePage() {
                     </span>
                   )}
                 </div>
-                <h3 className="text-2xl font-bold">{problem.question}</h3>
+                <h3 className="text-2xl font-bold break-words">{problem.question}</h3>
               </div>
 
               {!showResult ? (
@@ -708,7 +789,7 @@ export default function PracticePage() {
                         <button
                           key={index}
                           onClick={() => setSelectedOption(option)}
-                          className={`w-full text-left p-4 border-2 transition-all ${
+                          className={`w-full text-left p-4 border-2 transition-all break-words ${
                             selectedOption === option
                               ? "border-blue-500 bg-blue-900/20"
                               : "border-gray-600 hover:border-blue-700 bg-gray-700/50"
@@ -717,7 +798,7 @@ export default function PracticePage() {
                           <span className="font-semibold mr-3 text-gray-400">
                             {String.fromCharCode(65 + index)}.
                           </span>
-                          {option}
+                          <span className="break-words">{option}</span>
                         </button>
                       ))}
                     </div>
@@ -747,7 +828,7 @@ export default function PracticePage() {
                   {showHint && problem.hint && (
                     <div className="mt-4 bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
                       <p className="font-semibold text-yellow-400">Hint:</p>
-                      <p className="text-sm mt-1 text-yellow-300">
+                      <p className="text-sm mt-1 text-yellow-300 break-words">
                         {problem.hint}
                       </p>
                     </div>
@@ -767,11 +848,11 @@ export default function PracticePage() {
                       <span className="text-3xl">
                         {isCorrect() ? "✓" : "✗"}
                       </span>
-                      <div>
-                        <h4 className="text-xl font-bold">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xl font-bold break-words">
                           {isCorrect() ? "Correct!" : "Incorrect"}
                         </h4>
-                        <p className="text-sm text-gray-300">
+                        <p className="text-sm text-gray-300 break-words">
                           {answerRevealed
                             ? "Answer revealed below."
                             : "Click Reveal Answer when you're ready to discuss it."}
@@ -792,7 +873,7 @@ export default function PracticePage() {
                   {answerRevealed && (
                     <>
                       <div className="p-6 border-2 border-blue-500 bg-blue-900/20">
-                        <p className="text-sm">
+                        <p className="text-sm break-words">
                           {problem.type === "calculation" && (
                             <>
                               <strong>Correct answer:</strong>{" "}
@@ -814,7 +895,7 @@ export default function PracticePage() {
                         <h4 className="font-semibold text-lg mb-2 text-blue-400">
                           Explanation:
                         </h4>
-                        <p className="text-sm leading-relaxed">
+                        <p className="text-sm leading-relaxed break-words">
                           {problem.explanation}
                         </p>
                       </div>
@@ -850,8 +931,8 @@ export default function PracticePage() {
               )}
             </div>
 
-            {/* Problem Navigation Grid */}
-            <div className="bg-gray-800 border border-gray-700 p-6">
+              {/* Problem Navigation Grid */}
+              <div className="bg-gray-800 border border-gray-700 p-6">
               <h3 className="text-lg font-bold mb-4">Jump to Problem</h3>
               <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
                 {activeProblems.map((p, index) => (
@@ -894,8 +975,8 @@ export default function PracticePage() {
               </div>
             </div>
 
-            {/* Study Tips */}
-            <div className="bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
+              {/* Study Tips */}
+              <div className="bg-gradient-to-r from-purple-900 to-pink-900 p-6 border border-purple-700">
               <h3 className="text-xl font-bold mb-3">Study Tips</h3>
               <ul className="space-y-2 text-sm">
                 <li>
@@ -923,7 +1004,25 @@ export default function PracticePage() {
                   anytime
                 </li>
               </ul>
+              </div>
             </div>
+
+            {/* Right Column - Leaderboard */}
+            {sessionId && (
+              <div className="lg:col-span-1">
+                <div className="lg:sticky lg:top-4">
+                  <RealtimePerformance
+                    participants={liveParticipants}
+                    totalParticipants={liveTotalParticipants}
+                    isConnected={liveConnectionStatus}
+                    currentUserId={userId}
+                    questionBreakdown={questionBreakdown}
+                    recentAnswers={recentAnswers}
+                    error={realtimeError ?? leaderboardError}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
