@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -14,9 +14,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-katex": "^3.1.0",
-    "recharts": "^2.12.7",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@types/node": "^20",

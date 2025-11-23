@@ -25,8 +25,8 @@ The quiz application now supports real-time collaborative features similar to Me
 ## Technical Implementation
 
 ### Architecture
-- **Backend**: Custom Node.js server with Socket.io integration
-- **Frontend**: React hooks for WebSocket management
+- **Backend**: Serverless Edge WebSocket handler (`app/api/realtime/route.ts`)
+- **Frontend**: React hooks using the native `WebSocket` API
 - **Real-time Events**:
   - `join-session`: User joins a quiz session
   - `update-progress`: User submits an answer
@@ -36,18 +36,17 @@ The quiz application now supports real-time collaborative features similar to Me
 ### Files Added/Modified
 
 #### New Files
-- `server.js` - Custom Next.js server with Socket.io
+- `app/api/realtime/route.ts` - Edge runtime WebSocket handler
 - `lib/socketTypes.ts` - TypeScript types for Socket.io events
 - `hooks/useQuizSocket.ts` - React hook for WebSocket management
 - `components/RealtimePerformance.tsx` - Real-time dashboard component
 
 #### Modified Files
 - `app/practice/page.tsx` - Integrated WebSocket functionality
-- `package.json` - Updated scripts to use custom server
+- `package.json` - Uses the default Next.js dev/start scripts
 
 ### Dependencies Added
-- `socket.io` (^4.8.1)
-- `socket.io-client` (^4.8.1)
+- None — uses the native WebSocket API
 
 ## Running the Application
 

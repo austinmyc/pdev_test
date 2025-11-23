@@ -41,3 +41,12 @@ export const SOCKET_EVENTS = {
   UPDATE_PROGRESS: 'update-progress',
   SESSION_UPDATE: 'session-update',
 } as const;
+
+export type ClientMessage =
+  | { type: typeof SOCKET_EVENTS.JOIN_SESSION; payload: JoinSessionData }
+  | { type: typeof SOCKET_EVENTS.LEAVE_SESSION; payload: LeaveSessionData }
+  | { type: typeof SOCKET_EVENTS.UPDATE_PROGRESS; payload: UpdateProgressData };
+
+export type ServerMessage =
+  | { type: typeof SOCKET_EVENTS.SESSION_UPDATE; payload: SessionUpdate }
+  | { type: 'error'; payload: { message: string } };
