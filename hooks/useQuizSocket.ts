@@ -1,88 +1,129 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  ClientMessage,
   Participant,
-  SessionUpdate,
-  JoinSessionData,
-  UpdateProgressData,
+  ServerMessage,
   SOCKET_EVENTS,
 } from "@/lib/socketTypes";
 
-const SOCKET_EVENTS_NAMES = {
-  JOIN_SESSION: 'join-session',
-  LEAVE_SESSION: 'leave-session',
-  UPDATE_PROGRESS: 'update-progress',
-  SESSION_UPDATE: 'session-update',
-} as const;
+const SOCKET_PATH = "/api/realtime";
 
-export function useQuizSocket(sessionId: string, userId: string, userName: string) {
+const getSocketUrl = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const configuredUrl = process.env.NEXT_PUBLIC_REALTIME_URL;
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}${SOCKET_PATH}`;
+};
+
+export function useQuizSocket(
+  sessionId: string,
+  userId: string,
+  userName: string
+) {
   const [isConnected, setIsConnected] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [totalParticipants, setTotalParticipants] = useState(0);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // Don't connect if required data is missing
     if (!sessionId || !userId || !userName) {
       return;
     }
 
-    // Initialize socket connection
-    const socket = io({
-      path: '/socket.io',
-    });
+    const socketUrl = getSocketUrl();
+    if (!socketUrl) {
+      return;
+    }
 
+    const socket = new WebSocket(socketUrl);
     socketRef.current = socket;
 
-    // Connection event handlers
-    socket.on('connect', () => {
-      console.log('Connected to socket server');
-      setIsConnected(true);
+    const send = (message: ClientMessage) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+      }
+    };
 
-      // Join the session
-      const joinData: JoinSessionData = {
-        sessionId,
-        userId,
-        userName,
-      };
-      socket.emit(SOCKET_EVENTS_NAMES.JOIN_SESSION, joinData);
+    socket.addEventListener("open", () => {
+      setIsConnected(true);
+      send({
+        type: SOCKET_EVENTS.JOIN_SESSION,
+        payload: {
+          sessionId,
+          userId,
+          userName,
+        },
+      });
     });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from socket server');
+    socket.addEventListener("message", (event) => {
+      try {
+        const data = JSON.parse(event.data) as ServerMessage;
+        if (data.type === SOCKET_EVENTS.SESSION_UPDATE) {
+          setParticipants(data.payload.participants);
+          setTotalParticipants(data.payload.totalParticipants);
+        }
+      } catch (error) {
+        console.error("[Realtime] Failed to parse message", error);
+      }
+    });
+
+    socket.addEventListener("close", () => {
       setIsConnected(false);
     });
 
-    // Listen for session updates
-    socket.on(SOCKET_EVENTS_NAMES.SESSION_UPDATE, (data: SessionUpdate) => {
-      setParticipants(data.participants);
-      setTotalParticipants(data.totalParticipants);
+    socket.addEventListener("error", (error) => {
+      console.error("[Realtime] Socket error", error);
+      setIsConnected(false);
     });
 
-    // Cleanup on unmount
     return () => {
-      if (socket.connected) {
-        socket.emit(SOCKET_EVENTS_NAMES.LEAVE_SESSION, { sessionId, userId });
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(
+          JSON.stringify({
+            type: SOCKET_EVENTS.LEAVE_SESSION,
+            payload: { sessionId, userId },
+          })
+        );
       }
-      socket.disconnect();
+
+      socket.close();
+      socketRef.current = null;
+      setIsConnected(false);
     };
   }, [sessionId, userId, userName]);
 
-  // Function to update progress
-  const updateProgress = (score: number, attempted: number, progress: number) => {
-    if (socketRef.current?.connected) {
-      const updateData: UpdateProgressData = {
-        sessionId,
-        userId,
-        score,
-        attempted,
-        progress,
-      };
-      socketRef.current.emit(SOCKET_EVENTS_NAMES.UPDATE_PROGRESS, updateData);
-    }
-  };
+  const updateProgress = useCallback(
+    (score: number, attempted: number, progress: number) => {
+      const socket = socketRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      socket.send(
+        JSON.stringify({
+          type: SOCKET_EVENTS.UPDATE_PROGRESS,
+          payload: {
+            sessionId,
+            userId,
+            score,
+            attempted,
+            progress,
+          },
+        })
+      );
+    },
+    [sessionId, userId]
+  );
 
   return {
     isConnected,
