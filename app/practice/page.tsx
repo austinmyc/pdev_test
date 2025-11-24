@@ -140,17 +140,17 @@ const allProblems: Problem[] = [
   {
     id: 9,
     difficulty: "easy",
-    question: "What is an annuity?",
+    question: "How to compare two different cash-flow received at different times?",
     type: "multiple-choice",
     options: [
-      "A single lump sum payment",
-      "A series of equal payments at regular intervals",
-      "An investment with no risk",
-      "A type of stock option",
+      "Compare them directly without any adjustment",
+      "Convert both to the same point in time using present or future value",
+      "Only compare the dollar amounts regardless of timing",
+      "Use the average of the two cash flows",
     ],
-    correctAnswer: "A series of equal payments at regular intervals",
+    correctAnswer: "Convert both to the same point in time using present or future value",
     explanation:
-      "An annuity is a financial product that involves equal periodic payments. Examples include mortgage payments, retirement income, and regular investment contributions.",
+      "To compare cash flows received at different times, you must convert them to the same point in time (either both to present value or both to future value) using the time value of money formulas. This accounts for the fact that money today is worth more than money in the future.",
   },
   {
     id: 10,
